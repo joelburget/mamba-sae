@@ -41,7 +41,7 @@ def run(args):
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer,
                                                     mlm=False)
 
-    dataset = load_dataset("EleutherAI/pile")
+    dataset = load_dataset("monology/pile-uncopyrighted")
 
     trainer = MambaTrainer(
         model=model,
