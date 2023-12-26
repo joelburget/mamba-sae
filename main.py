@@ -8,6 +8,20 @@ from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
 from transformers import (AutoTokenizer, DataCollatorForLanguageModeling,
                           Trainer, TrainingArguments)
 
+os.environ["WANDB_PROJECT"] = "mamba-1l"
+os.environ["WANDB_LOG_MODEL"] = "true"
+
+MambaConfig.to_dict = lambda self: dict(
+    d_model=self.d_model,
+    n_layer=self.n_layer,
+    vocab_size=self.vocab_size,
+    ssm_cfg=self.ssm_cfg,
+    rms_norm=self.rms_norm,
+    residual_in_fp32=self.residual_in_fp32,
+    fused_add_norm=self.fused_add_norm,
+    pad_vocab_size_multiple=self.pad_vocab_size_multiple,
+)
+
 
 class MambaTrainer(Trainer):
 
@@ -34,14 +48,13 @@ class MambaTrainer(Trainer):
 
 
 def run(args):
-
     model = MambaLMHeadModel(MambaConfig(n_layer=1))
 
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer,
                                                     mlm=False)
 
-    dataset = load_dataset("monology/pile-uncopyrighted")
+    dataset = load_dataset("monology/pile-uncopyrighted", streaming=True)
 
     trainer = MambaTrainer(
         model=model,
@@ -56,6 +69,8 @@ def run(args):
             output_dir="output",
             logging_steps=50,
             save_steps=500,
+            max_steps=50_000,
+            report_to="wandb",
         ),
         data_collator=data_collator,
     )
