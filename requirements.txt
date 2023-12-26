@@ -1,0 +1,7 @@
+packaging
+wheel
+torch==2.1.2
+transformers==4.36.2
+mamba-ssm==1.1.1
+accelerate==0.25.0
+datasets
