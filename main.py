@@ -48,13 +48,19 @@ class MambaTrainer(Trainer):
 
 
 def run(args):
-    model = MambaLMHeadModel(MambaConfig(n_layer=1))
+    model = MambaLMHeadModel(MambaConfig(n_layer=1, d_model=320))
 
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
+    tokenizer.eos_token = "<|endoftext|>"
+    tokenizer.pad_token = tokenizer.eos_token
+
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer,
                                                     mlm=False)
 
     dataset = load_dataset("monology/pile-uncopyrighted", streaming=True)
+    dataset = dataset.map(lambda example: tokenizer(example['text']))
+    # GPU not big enough to handle larger!
+    dataset = dataset.filter(lambda example: len(example['input_ids']) < 7_500)
 
     trainer = MambaTrainer(
         model=model,
