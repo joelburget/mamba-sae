@@ -41,9 +41,13 @@ def analyze_feature(feature_no: int, n: int) -> AnalysisResult:
         activation = activation_on_input(feature_no, example)
 
         if len(min_heap) < n:
-            heapq.heappush(min_heap, (-activation, input))
+            heapq.heappush(min_heap, (-activation, example))
         else:
-            heapq.heappushpop(min_heap, (-activation, input))
+            heapq.heappushpop(min_heap, (-activation, example))
 
-    return AnalysisResult([(-neg_activation, input)
-                           for neg_activation, input in min_heap])
+    return AnalysisResult([(-neg_activation, example)
+                           for neg_activation, example in min_heap])
+
+
+if __name__ == '__main__':
+    print(analyze_feature(0, 6))
