@@ -8,8 +8,8 @@ from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
 from transformers import (AutoTokenizer, DataCollatorForLanguageModeling,
                           Trainer, TrainingArguments)
 
-os.environ["WANDB_PROJECT"] = "mamba-1l"
-os.environ["WANDB_LOG_MODEL"] = "true"
+# os.environ["WANDB_PROJECT"] = "mamba-1l"
+os.environ["WANDB_LOG_MODEL"] = "false"
 
 MambaConfig.to_dict = lambda self: dict(
     d_model=self.d_model,
@@ -39,11 +39,15 @@ class MambaTrainer(Trainer):
 
         return lm_loss
 
+    def on_train_end(self, args):
+        self.save_model(args.output_dir, False)
+
     def save_model(self, output_dir: str, _internal_call):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
         torch.save(self.model.state_dict(), f"{output_dir}/pytorch_model.bin")
+        # save_model(self.model, f"{output_dir}/model.safetensors")
         self.tokenizer.save_pretrained(output_dir)
 
 
@@ -58,10 +62,11 @@ def run(args):
                                                     mlm=False)
 
     dataset = load_dataset("monology/pile-uncopyrighted", streaming=True)
-    dataset = dataset.map(lambda example: tokenizer(example['text']))
+    dataset = dataset.map(lambda example: tokenizer(example["text"]))
     # GPU not big enough to handle larger!
-    dataset = dataset.filter(lambda example: len(example['input_ids']) < 7_500)
+    dataset = dataset.filter(lambda example: len(example["input_ids"]) < 7_500)
 
+    output_dir = "output"
     trainer = MambaTrainer(
         model=model,
         train_dataset=dataset["train"],
@@ -72,16 +77,17 @@ def run(args):
             per_device_train_batch_size=args.batch_size,
             gradient_accumulation_steps=args.gradient_accumulation_steps,
             optim=args.optim,
-            output_dir="output",
+            output_dir=output_dir,
             logging_steps=50,
             save_steps=500,
-            max_steps=50_000,
-            report_to="wandb",
+            max_steps=51_001,
+            # report_to="wandb",
         ),
         data_collator=data_collator,
     )
 
-    trainer.train()
+    trainer.train(resume_from_checkpoint=True)
+    trainer.save_model(output_dir, False)
 
 
 if __name__ == "__main__":

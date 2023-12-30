@@ -7,3 +7,4 @@ accelerate==0.25.0
 datasets
 wandb
 zstandard
+tqdm
