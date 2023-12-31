@@ -9,20 +9,27 @@ from dataclasses import dataclass
 from typing import List, Tuple
 
 import torch
+from datasets import load_dataset
 from tqdm import tqdm
 
 from dictionary_learning.dictionary import AutoEncoder
-from train_sae import (activation_dim, dictionary_size, model, short_data,
-                       tokenizer)
+from tokenizer import Tokenizer
+from train_sae import activation_dim, dictionary_size, make_model
 
-state_dict = torch.load("sae-output/model.bin")
+ae_state_dict = torch.load("sae-output/model.bin")
 ae = AutoEncoder(activation_dim, dictionary_size)
-ae.load_state_dict(state_dict)
+ae.load_state_dict(ae_state_dict)
+dataset = load_dataset("/mnt/hddraid/pile-uncopyrighted",
+                       split="train",
+                       streaming=True)
+short_data = (example["text"] for example in dataset.take(1000))
+tokenizer = Tokenizer()
+model = make_model("./output/pytorch_model.bin")
 
 
 # TODO: do a whole batch at a time
 def activations_on_input(input: str) -> torch.Tensor:
-    tokens = tokenizer(input)['input_ids']
+    tokens = tokenizer(input)["input_ids"]
     with model.invoke(tokens) as _invoker:
         embedding = model.model.embedding
         intervention_proxy = embedding.output[0].save()
@@ -56,8 +63,8 @@ def analyze_features(n: int) -> AnalysisResult:
 
 def print_top_acts(acts: List[Tuple[float, str]], excerpt_length=200):
     for score, text in acts:
-        print(f'\033[1m{score}\033[0m', text[:excerpt_length])
+        print(f"\033[1m{score}\033[0m", text[:excerpt_length])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print(analyze_features(6))

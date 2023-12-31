@@ -1,3 +1,4 @@
+import argparse
 from collections import OrderedDict
 
 import torch
@@ -9,41 +10,43 @@ from dictionary_learning.training import trainSAE
 from modeling_mamba import MambaConfig, MambaForCausalLM
 from tokenizer import Tokenizer
 
-dataset = load_dataset("/mnt/hddraid/pile-uncopyrighted",
-                       split="train",
-                       streaming=True)
-
-mamba_config = MambaConfig(n_layer=1, d_model=320)
 activation_dim = 320
 dictionary_size = 16 * activation_dim
+mamba_config = MambaConfig(n_layer=1, d_model=activation_dim)
 
-tokenizer = Tokenizer()
 
-original_state_dict = torch.load("./output/pytorch_model.bin")
-renamed_state_dict = OrderedDict()
-for key in original_state_dict:
-    new_key = key.replace("backbone", "model").replace(".mixer", "")
-    renamed_state_dict[new_key] = original_state_dict[key]
+def make_model(state_dict_path: str) -> LanguageModel:
+    """Make a LanguageModel from a state dict.
 
-automodel = MambaForCausalLM(mamba_config)
-automodel.load_state_dict(renamed_state_dict)
-automodel.cuda()
-model = LanguageModel(automodel, tokenizer=tokenizer)
+    1. Load state dict.
+    2. Update it to use MambaForCausalLM names.
+    3. Wrap in a LanguageModel.
+    """
+    original_state_dict = torch.load(state_dict_path)
+    renamed_state_dict = OrderedDict()
+    for key in original_state_dict:
+        new_key = key.replace("backbone", "model").replace(".mixer", "")
+        renamed_state_dict[new_key] = original_state_dict[key]
 
-submodule = model.model.layers[0]
-data = (example["text"] for example in dataset.take(200_000))
-short_data = (example["text"] for example in dataset.take(1000))
+    automodel = MambaForCausalLM(mamba_config)
+    automodel.load_state_dict(renamed_state_dict)
+    automodel.cuda()
+    tokenizer = Tokenizer()
+    return LanguageModel(automodel, tokenizer=tokenizer)
 
-buffer = ActivationBuffer(
-    data,
-    model,
-    submodule,
-    in_feats=activation_dim,
-    out_feats=activation_dim,
-)
 
-if __name__ == "__main__":
-    print("training SAE")
+def run(args):
+    dataset = load_dataset(args.dataset, split="train", streaming=True)
+    model = make_model(args.state_dict)
+
+    buffer = ActivationBuffer(
+        data=(example["text"] for example in dataset.take(200_000)),
+        model=model,
+        submodule=model.model.layers[0],
+        in_feats=activation_dim,
+        out_feats=activation_dim,
+    )
+
     ae = trainSAE(
         buffer,
         activation_dim,
@@ -53,5 +56,15 @@ if __name__ == "__main__":
         device="cuda:0",
     )
 
-    print("done training SAE")
-    torch.save(ae.state_dict(), "sae-output/model-sparsity-4e-3.bin")
+    torch.save(ae.state_dict(), args.output)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset",
+                        type=str,
+                        default="/mnt/hddraid/pile-uncopyrighted")
+    parser.add_argument("--state_dict",
+                        type=str,
+                        default="./output/pytorch_model.bin")
+    parser.add_argument("--output", type=str, default="sae-output/model.bin")
