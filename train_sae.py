@@ -68,3 +68,6 @@ if __name__ == "__main__":
                         type=str,
                         default="./output/pytorch_model.bin")
     parser.add_argument("--output", type=str, default="sae-output/model.bin")
+
+    args = parser.parse_args()
+    run(args)
