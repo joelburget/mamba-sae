@@ -10,10 +10,8 @@ from modeling_mamba import MambaConfig, MambaForCausalLM
 from tokenizer import Tokenizer
 
 dataset = load_dataset("/mnt/hddraid/pile-uncopyrighted",
-                       split='train',
+                       split="train",
                        streaming=True)
-
-print("dataset loaded")
 
 mamba_config = MambaConfig(n_layer=1, d_model=320)
 activation_dim = 320
@@ -33,7 +31,7 @@ automodel.cuda()
 model = LanguageModel(automodel, tokenizer=tokenizer)
 
 submodule = model.model.layers[0]
-data = (example["text"] for example in dataset.take(100_000))
+data = (example["text"] for example in dataset.take(200_000))
 short_data = (example["text"] for example in dataset.take(1000))
 
 buffer = ActivationBuffer(
@@ -51,9 +49,9 @@ if __name__ == "__main__":
         activation_dim,
         dictionary_size,
         lr=3e-4,
-        sparsity_penalty=1e-3,
+        sparsity_penalty=4e-3,
         device="cuda:0",
     )
 
     print("done training SAE")
-    torch.save(ae.state_dict(), "sae-output/model.bin")
+    torch.save(ae.state_dict(), "sae-output/model-sparsity-4e-3.bin")
