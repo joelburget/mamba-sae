@@ -4,67 +4,136 @@
 # - positive / negative logits
 # - activation histogram
 
+import argparse
 import heapq
+import pickle
 from dataclasses import dataclass
 from typing import List, Tuple
 
 import torch
-from datasets import load_dataset
+from datasets import IterableDataset, load_dataset
+from nnsight import LanguageModel
 from tqdm import tqdm
 
 from dictionary_learning.dictionary import AutoEncoder
 from tokenizer import Tokenizer
 from train_sae import activation_dim, dictionary_size, make_model
 
-ae_state_dict = torch.load("sae-output/model.bin")
-ae = AutoEncoder(activation_dim, dictionary_size)
-ae.load_state_dict(ae_state_dict)
-dataset = load_dataset("/mnt/hddraid/pile-uncopyrighted",
-                       split="train",
-                       streaming=True)
-short_data = (example["text"] for example in dataset.take(1000))
 tokenizer = Tokenizer()
-model = make_model("./output/pytorch_model.bin")
+excerpt_width = 2
 
 
-# TODO: do a whole batch at a time
-def activations_on_input(input: str) -> torch.Tensor:
+def activations_on_input(
+    model: LanguageModel, ae: AutoEncoder, input: str
+) -> Tuple[List[int], torch.Tensor]:
     tokens = tokenizer(input)["input_ids"]
     with model.invoke(tokens) as _invoker:
         embedding = model.model.embedding
         intervention_proxy = embedding.output[0].save()
-    return ae.encode(intervention_proxy.value.cpu())[0]
+    return tokens, ae.encode(intervention_proxy.value.cpu())
+
+
+@dataclass
+class TokenFocus:
+    left_context: List[int]
+    focal_token: int
+    right_context: List[int]
+
+
+@dataclass
+class Activation:
+    input: str
+    token_focus: TokenFocus
+    position: int
+    strength: float
 
 
 @dataclass
 class AnalysisResult:
-    max_activations: List[List[Tuple[float, str]]]
+    max_activations: List[List[Activation]]
     # TODO: logits, histogram
 
 
-def analyze_features(n: int) -> AnalysisResult:
+def analyze_features(
+    data: IterableDataset, model: LanguageModel, ae: AutoEncoder, n: int
+) -> AnalysisResult:
     min_heaps = [[] for _ in range(dictionary_size)]
 
-    for example in tqdm(short_data):
-        activations = activations_on_input(example)
+    for example in tqdm(data):
+        # activations has dimensions [seq_len, dictionary_size]
+        tokens, activations = activations_on_input(model, ae, example)
 
         for feature_n in range(dictionary_size):
             min_heap = min_heaps[feature_n]
-            activation = activations[feature_n].item()
-            if len(min_heap) < n:
-                heapq.heappush(min_heap, (-activation, example))
-            else:
-                heapq.heappushpop(min_heap, (-activation, example))
+            for pos in range(activations.shape[0]):
+                token_focus = TokenFocus(
+                    tokens[max(0, pos - excerpt_width) : pos],
+                    tokens[pos],
+                    tokens[pos + 1 : pos + excerpt_width],
+                )
+                activation = activations[pos, feature_n].item()
+                if len(min_heap) < n:
+                    heapq.heappush(min_heap, (-activation, pos, example, token_focus))
+                else:
+                    heapq.heappushpop(
+                        min_heap, (-activation, pos, example, token_focus)
+                    )
 
-    return AnalysisResult([[(-neg_activation, example)
-                            for neg_activation, example in min_heap]
-                           for min_heap in min_heaps])
+    return AnalysisResult(
+        [
+            [
+                Activation(example, token_focus, pos, -neg_activation)
+                for neg_activation, pos, example, token_focus in min_heap
+            ]
+            for min_heap in min_heaps
+        ]
+    )
 
 
-def print_top_acts(acts: List[Tuple[float, str]], excerpt_length=200):
-    for score, text in acts:
-        print(f"\033[1m{score}\033[0m", text[:excerpt_length])
+def print_top_acts(acts: List[Activation]):
+    for activation in acts:
+        match activation:
+            case Activation(
+                _input,
+                TokenFocus(left_context, focal_token, right_context),
+                _position,
+                score,
+            ):
+                left_str = tokenizer.decode(left_context)
+                focus = tokenizer.decode(focal_token)
+                right_str = tokenizer.decode(right_context)
+                print(
+                    f"  \033[1m{score}\033[0m: {left_str}\033[1m{focus}\033[0m{right_str}"
+                )
+
+
+def run(args):
+    ae_state_dict = torch.load(args.sae_state_dict)
+    ae = AutoEncoder(activation_dim, dictionary_size)
+    ae.load_state_dict(ae_state_dict)
+    model = make_model(args.model_state_dict)
+    dataset = load_dataset(args.dataset, split="train", streaming=True)
+    data = (example["text"] for example in dataset.take(1000))
+
+    analysis_result = analyze_features(data, model, ae, 3).max_activations[:5]
+    with open(args.pickle_location, "wb") as f:
+        pickle.dump(analysis_result, f, pickle.HIGHEST_PROTOCOL)
+
+    for i, activations in enumerate(analysis_result):
+        print(f"feature {i}:")
+        print_top_acts(activations)
 
 
 if __name__ == "__main__":
-    print(analyze_features(6))
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--dataset", type=str, default="/mnt/hddraid/pile-uncopyrighted"
+    )
+    parser.add_argument(
+        "--model_state_dict", type=str, default="output/pytorch_model.bin"
+    )
+    parser.add_argument("--sae_state_dict", type=str, default="sae-output/model.bin")
+    parser.add_argument("--pickle_location", type=str, default="analysis.pickle")
+
+    args = parser.parse_args()
+    run(args)
