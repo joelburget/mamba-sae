@@ -4,15 +4,15 @@ from collections import OrderedDict
 import torch
 from datasets import load_dataset
 from nnsight import LanguageModel
+from tqdm import tqdm
 
 from dictionary_learning.buffer import ActivationBuffer
 from dictionary_learning.training import trainSAE
 from modeling_mamba import MambaConfig, MambaForCausalLM
 from tokenizer import Tokenizer
 
-activation_dim = 320
-dictionary_size = 16 * activation_dim
-mamba_config = MambaConfig(n_layer=1, d_model=activation_dim)
+d_model = 640
+mamba_config = MambaConfig(n_layer=1, d_model=d_model)
 
 
 def make_model(state_dict_path: str) -> LanguageModel:
@@ -39,24 +39,34 @@ def run(args):
     dataset = load_dataset(args.dataset, split="train", streaming=True)
     model = make_model(args.state_dict)
 
-    buffer = ActivationBuffer(
-        data=(example["text"] for example in dataset.take(200_000)),
-        model=model,
-        submodule=model.model.layers[0],
-        in_feats=activation_dim,
-        out_feats=activation_dim,
-    )
+    for sparsity_penalty in tqdm([0.004, 0.006, 0.008, 0.01],
+                                 desc="sparsity_penalty",
+                                 position=0):
+        for relative_size in tqdm([2, 4, 8, 16, 32],
+                                  desc="relative_size",
+                                  position=1,
+                                  leave=False):
+            buffer = ActivationBuffer(
+                data=(example["text"] for example in dataset.take(200_000)),
+                model=model,
+                submodule=model.model.layers[0],
+                in_feats=d_model,
+                out_feats=d_model,
+            )
 
-    ae = trainSAE(
-        buffer,
-        activation_dim,
-        dictionary_size,
-        lr=3e-4,
-        sparsity_penalty=4e-3,
-        device="cuda:0",
-    )
+            ae = trainSAE(
+                activations=buffer,
+                activation_dim=d_model,
+                dictionary_size=relative_size * d_model,
+                lr=3e-4,
+                sparsity_penalty=sparsity_penalty,
+                device="cuda:0",
+            )
 
-    torch.save(ae.state_dict(), args.output)
+            torch.save(
+                ae.state_dict(),
+                f"{args.output_dir}/model-{sparsity_penalty}-{relative_size}.bin",
+            )
 
 
 if __name__ == "__main__":
@@ -66,8 +76,8 @@ if __name__ == "__main__":
                         default="/mnt/hddraid/pile-uncopyrighted")
     parser.add_argument("--state_dict",
                         type=str,
-                        default="./output/pytorch_model.bin")
-    parser.add_argument("--output", type=str, default="sae-output/model.bin")
+                        default="./output-640/pytorch_model.bin")
+    parser.add_argument("--output_dir", type=str, default="sae-output-640")
 
     args = parser.parse_args()
     run(args)
