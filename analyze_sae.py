@@ -24,13 +24,12 @@ excerpt_width = 2
 
 
 def activations_on_input(
-    model: LanguageModel, ae: AutoEncoder, input: str
-) -> Tuple[List[int], torch.Tensor]:
-    tokens = tokenizer(input)["input_ids"]
+    model: LanguageModel, ae: AutoEncoder, tokens: List[int]
+) -> torch.Tensor:
     with model.invoke(tokens) as _invoker:
         embedding = model.model.embedding
         intervention_proxy = embedding.output[0].save()
-    return tokens, ae.encode(intervention_proxy.value.cpu())
+    return ae.encode(intervention_proxy.value.cpu())
 
 
 @dataclass
@@ -61,7 +60,8 @@ def analyze_features(
 
     for example in tqdm(data):
         # activations has dimensions [seq_len, dictionary_size]
-        tokens, activations = activations_on_input(model, ae, example)
+        tokens = tokenizer(example)["input_ids"]
+        activations = activations_on_input(model, ae, tokens)
 
         for feature_n in range(dictionary_size):
             min_heap = min_heaps[feature_n]
@@ -113,9 +113,9 @@ def run(args):
     ae.load_state_dict(ae_state_dict)
     model = make_model(args.model_state_dict)
     dataset = load_dataset(args.dataset, split="train", streaming=True)
-    data = (example["text"] for example in dataset.take(1000))
+    data = (example["text"] for example in dataset.take(args.data_points))
 
-    analysis_result = analyze_features(data, model, ae, 3).max_activations[:5]
+    analysis_result = analyze_features(data, model, ae, 3).max_activations
     with open(args.pickle_location, "wb") as f:
         pickle.dump(analysis_result, f, pickle.HIGHEST_PROTOCOL)
 
@@ -134,6 +134,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--sae_state_dict", type=str, default="sae-output/model.bin")
     parser.add_argument("--pickle_location", type=str, default="analysis.pickle")
+    parser.add_argument("--data_points", type=int, default=10)
 
     args = parser.parse_args()
     run(args)
