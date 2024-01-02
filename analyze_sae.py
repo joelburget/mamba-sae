@@ -1,14 +1,14 @@
 # For each feature, find:
 # x find top activations
 # -   - autointerp?
-# - positive / negative logits
+# - positive / negative logits (not sure how exactly this is done)
 # - activation histogram
 
 import argparse
 import heapq
 import pickle
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List
 
 import torch
 from datasets import IterableDataset, load_dataset
