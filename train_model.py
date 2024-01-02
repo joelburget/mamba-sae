@@ -8,8 +8,10 @@ from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
 from transformers import (AutoTokenizer, DataCollatorForLanguageModeling,
                           Trainer, TrainingArguments)
 
-# os.environ["WANDB_PROJECT"] = "mamba-1l"
+os.environ["WANDB_PROJECT"] = "mamba-1l"
 os.environ["WANDB_LOG_MODEL"] = "false"
+
+d_model = 640
 
 MambaConfig.to_dict = lambda self: dict(
     d_model=self.d_model,
@@ -47,12 +49,11 @@ class MambaTrainer(Trainer):
             os.makedirs(output_dir)
 
         torch.save(self.model.state_dict(), f"{output_dir}/pytorch_model.bin")
-        # save_model(self.model, f"{output_dir}/model.safetensors")
         self.tokenizer.save_pretrained(output_dir)
 
 
 def run(args):
-    model = MambaLMHeadModel(MambaConfig(n_layer=1, d_model=320))
+    model = MambaLMHeadModel(MambaConfig(n_layer=1, d_model=d_model))
 
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
     tokenizer.eos_token = "<|endoftext|>"
@@ -61,12 +62,12 @@ def run(args):
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer,
                                                     mlm=False)
 
-    dataset = load_dataset("monology/pile-uncopyrighted", streaming=True)
+    dataset = load_dataset("/mnt/hddraid/pile-uncopyrighted", streaming=True)
     dataset = dataset.map(lambda example: tokenizer(example["text"]))
     # GPU not big enough to handle larger!
     dataset = dataset.filter(lambda example: len(example["input_ids"]) < 7_500)
 
-    output_dir = "output"
+    output_dir = args.output_dir
     trainer = MambaTrainer(
         model=model,
         train_dataset=dataset["train"],
@@ -81,12 +82,12 @@ def run(args):
             logging_steps=50,
             save_steps=500,
             max_steps=51_001,
-            # report_to="wandb",
+            report_to="wandb",
         ),
         data_collator=data_collator,
     )
 
-    trainer.train(resume_from_checkpoint=True)
+    trainer.train()
     trainer.save_model(output_dir, False)
 
 
@@ -100,6 +101,7 @@ if __name__ == "__main__":
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
     parser.add_argument("--optim", type=str, default="adamw_torch")
     parser.add_argument("--num_epochs", type=int, default=1)
+    parser.add_argument("--output_dir", type=str, default="output")
     args = parser.parse_args()
 
     run(args)
