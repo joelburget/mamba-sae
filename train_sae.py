@@ -1,4 +1,5 @@
 import argparse
+import os
 from collections import OrderedDict
 
 import torch
@@ -63,6 +64,8 @@ def run(args):
                 device="cuda:0",
             )
 
+            if not os.path.exists(args.output_dir):
+                os.makedirs(args.output_dir)
             torch.save(
                 ae.state_dict(),
                 f"{args.output_dir}/model-{sparsity_penalty}-{relative_size}.bin",
