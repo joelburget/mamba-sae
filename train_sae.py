@@ -31,7 +31,7 @@ def make_model(state_dict_path: str) -> LanguageModel:
 
     automodel = MambaForCausalLM(mamba_config)
     automodel.load_state_dict(renamed_state_dict)
-    automodel.cuda()
+    # automodel.cuda()
     tokenizer = Tokenizer()
     return LanguageModel(automodel, tokenizer=tokenizer)
 
