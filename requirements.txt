@@ -9,3 +9,4 @@ wandb
 zstandard
 tqdm
 nnsight
+matplotlib
