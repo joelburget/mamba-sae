@@ -1,0 +1,10 @@
+d_model = 320
+relative_size = 4
+dictionary_size = relative_size * d_model
+dataset_path = "/mnt/hddraid/pile-uncopyrighted"
+sparsity_penalties = [0.004, 0.006, 0.008, 0.01]
+relative_sizes = [2, 4, 8, 16, 32]
+sae_dir = f"sae-output-{d_model}"
+sae_path = f"{sae_dir}/model-{sparsity_penalty}-{relative_size}.bin"
+model_dir = f"model-output-{d_model}"
+model_path = f"{model_dir}/pytorch_model.bin"

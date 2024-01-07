@@ -21,12 +21,16 @@ from tqdm import tqdm
 from dictionary_learning.dictionary import AutoEncoder
 from tokenizer import Tokenizer
 from train_sae import make_model
+from params import (
+    d_model,
+    dictionary_size,
+    dataset_path,
+    model_path,
+    sae_path,
+)
 
 tokenizer = Tokenizer()
 excerpt_width = 2
-d_model = 320
-relative_size = 4
-dictionary_size = relative_size * d_model
 
 
 def activations_on_input(
@@ -114,11 +118,11 @@ def print_top_acts(acts: List[Activation]):
 
 
 def run(args):
-    ae_state_dict = torch.load(args.sae_state_dict)
+    ae_state_dict = torch.load(sae_path)
     ae = AutoEncoder(d_model, dictionary_size)
     ae.load_state_dict(ae_state_dict)
-    model = make_model(args.model_state_dict)
-    dataset = load_dataset(args.dataset, split="train", streaming=True)
+    model = make_model(model_path)
+    dataset = load_dataset(dataset_path, split="train", streaming=True)
     data = (example["text"] for example in dataset.take(args.data_points))
 
     analysis_result = analyze_features(data, model, ae, 3).max_activations
@@ -132,13 +136,6 @@ def run(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--dataset", type=str, default="/mnt/hddraid/pile-uncopyrighted"
-    )
-    parser.add_argument(
-        "--model_state_dict", type=str, default="output-640/pytorch_model.bin"
-    )
-    parser.add_argument("--sae_state_dict", type=str, default="sae-output/model.bin")
     parser.add_argument("--pickle_location", type=str, default="analysis.pickle")
     parser.add_argument("--data_points", type=int, default=30_000)
 
