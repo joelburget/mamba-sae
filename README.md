@@ -7,18 +7,34 @@ We make heavy use of the [nnsight](https://nnsight.net/) library for interpretin
 
 # Tools
 
-## `train_model.py`
+## Main scripts
+
+### `train_model.py`
 
 Script for training a one-layer Mamba model. Outputs stats to [wandb](https://wandb.ai/site/).
 
-## `train_sae.py`
+### `train_sae.py`
 
 Once you've trained your model, you can train a Sparse Autoencoder on it. This script actually trains a grid of SAEs, one for each combination of sparsity penalty and relative size you configure.
 
-## `evaluate_saes.py`
+### `evaluate_saes.py`
 
 For each autoencode trained in the previous step, evaluate stats such as MSE loss, percentage of neurons alive, percentage of loss recovered, etc.
 
-## `analyze_sae.py`
+### `analyze_sae.py`
 
 Given a single SAE, find top activations for each neuron. Hopefully more features in the future.
+
+## Other
+
+### `sae_analyze_320.py` / `sae_analyze_640.py`
+
+Scripts to plot heatmaps of stats for two sets of SAEs I trained (comparing four different sparsity penalties and four different relative sizes).
+
+### `run_model.py`
+
+Helpers for running a model you've trained.
+
+# Pretrained Models / SAEs
+
+I've uploaded two models (`pytorch_model-{320,640}.bin`) and two sets of SAEs trained on them to [Google Drive](https://drive.google.com/drive/folders/1l8Qiei75lQjrz_EUrgNgysfZ-gkr_r0L?usp=sharing). [Doc with their stats](https://docs.google.com/document/d/1Y1iEJIkoXhLkdxEQCxIPHJFirJRq26R9gRqpYV9hie0/edit?usp=sharing).
