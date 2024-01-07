@@ -1,3 +1,6 @@
+"""
+Find features in a single SAE.
+"""
 # For each feature, find:
 # x find top activations
 # -   - autointerp?
@@ -15,15 +18,15 @@ from datasets import IterableDataset, load_dataset
 from nnsight import LanguageModel
 from tqdm import tqdm
 
-from dictionary_learning.buffer import ActivationBuffer
 from dictionary_learning.dictionary import AutoEncoder
-from dictionary_learning.evaluation import evaluate
 from tokenizer import Tokenizer
-from train_sae import d_model, make_model
+from train_sae import make_model
 
 tokenizer = Tokenizer()
 excerpt_width = 2
-d_model = 640
+d_model = 320
+relative_size = 4
+dictionary_size = relative_size * d_model
 
 
 def activations_on_input(
@@ -111,50 +114,20 @@ def print_top_acts(acts: List[Activation]):
 
 
 def run(args):
+    ae_state_dict = torch.load(args.sae_state_dict)
+    ae = AutoEncoder(d_model, dictionary_size)
+    ae.load_state_dict(ae_state_dict)
     model = make_model(args.model_state_dict)
-    submodule = model.model.layers[0]
+    dataset = load_dataset(args.dataset, split="train", streaming=True)
+    data = (example["text"] for example in dataset.take(args.data_points))
 
-    for sparsity_penalty in tqdm(
-        [0.004, 0.006, 0.008, 0.01], desc="sparsity_penalty", position=0
-    ):
-        for relative_size in tqdm(
-            [2, 4, 8, 16, 32], desc="relative_size", position=1, leave=False
-        ):
-            ae_state_dict = torch.load(
-                f"sae-output-640/model-{sparsity_penalty}-{relative_size}.bin",
-            )
-            ae = AutoEncoder(d_model, d_model * relative_size)
-            ae.load_state_dict(ae_state_dict)
+    analysis_result = analyze_features(data, model, ae, 3).max_activations
+    with open(args.pickle_location, "wb") as f:
+        pickle.dump(analysis_result, f, pickle.HIGHEST_PROTOCOL)
 
-            dataset = load_dataset(args.dataset, split="train", streaming=True)
-            data = (
-                example["text"]
-                for example in dataset.filter(lambda example: len(example) < 5000).take(
-                    500 * 128
-                )
-            )
-
-            buffer = ActivationBuffer(
-                data=data,
-                model=model,
-                submodule=submodule,
-                in_feats=d_model,
-                out_feats=d_model,
-                n_ctxs=500,
-                # ctx_len=32,
-            )
-
-            result = evaluate(model, submodule, ae, buffer)
-            print(f"sparsity {sparsity_penalty}, relative size: {relative_size}")
-            print(result)
-
-    # analysis_result = analyze_features(data, model, ae, 3).max_activations
-    # with open(args.pickle_location, "wb") as f:
-    #     pickle.dump(analysis_result, f, pickle.HIGHEST_PROTOCOL)
-
-    # for i, activations in enumerate(analysis_result):
-    #     print(f"feature {i}:")
-    #     print_top_acts(activations)
+    for i, activations in enumerate(analysis_result):
+        print(f"feature {i}:")
+        print_top_acts(activations)
 
 
 if __name__ == "__main__":
@@ -165,8 +138,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_state_dict", type=str, default="output-640/pytorch_model.bin"
     )
-    # parser.add_argument("--sae_state_dict", type=str, default="sae-output/model.bin")
-    # parser.add_argument("--pickle_location", type=str, default="analysis.pickle")
+    parser.add_argument("--sae_state_dict", type=str, default="sae-output/model.bin")
+    parser.add_argument("--pickle_location", type=str, default="analysis.pickle")
     parser.add_argument("--data_points", type=int, default=30_000)
 
     args = parser.parse_args()
