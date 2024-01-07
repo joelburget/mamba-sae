@@ -9,6 +9,8 @@ We make heavy use of the [nnsight](https://nnsight.net/) library for interpretin
 
 ## Main scripts
 
+_Before running any of these scripts, set the appropriate parameters in `params.py`_.
+
 ### `train_model.py`
 
 Script for training a one-layer Mamba model. Outputs stats to [wandb](https://wandb.ai/site/).
