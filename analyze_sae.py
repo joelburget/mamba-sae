@@ -72,10 +72,11 @@ def analyze_features(
         # activations has dimensions [seq_len, dictionary_size]
         tokens = tokenizer(example)["input_ids"]
         activations = activations_on_input(model, ae, tokens)
+        seq_len = activations.shape[0]
 
         for feature_n in range(dictionary_size):
             min_heap = min_heaps[feature_n]
-            for pos in range(activations.shape[0]):
+            for pos in range(seq_len):
                 token_focus = TokenFocus(
                     tokens[max(0, pos - excerpt_width) : pos],
                     tokens[pos],
