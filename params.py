@@ -4,6 +4,9 @@ d_model = 320
 # The size of the SAE dictionary relative to d_model. Used only in analyze_sae.py.
 relative_size = 4
 
+# Used only in analyze_sae.py.
+sparsity_penalty = 0.004
+
 # The size of the SAE dictionary. Used only in analyze_sae.py.
 dictionary_size = relative_size * d_model
 
