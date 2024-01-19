@@ -64,6 +64,7 @@ class Activation:
 
 
 MaxActivationsForNeuron = List[Activation]
+WorkerActivationsForNeuron = List[Tuple[float, int, str, TokenFocus]]
 AllActivationsForNeuron = List[float]
 
 
@@ -136,7 +137,7 @@ def analyze_feature_worker(data_queue, result_queue):
 
         tokens = tokenizer(example)["input_ids"]
         activations = activations_on_input(model, ae, tokens)
-        seq_len = activations.shape[0]
+        seq_len = len(tokens)
 
         for feature_n in range(dictionary_size):
             min_heap = min_heaps[feature_n]
@@ -149,6 +150,8 @@ def analyze_feature_worker(data_queue, result_queue):
                 )
                 activation = activations[pos, feature_n].item()
                 activations_for_feature.append(activation)
+                if activation < SIGNIFICANT_ACTIVATION_THRESHOLD:
+                    continue
                 if len(min_heap) < top_feature_count:
                     heapq.heappush(min_heap, (-activation, pos, example, token_focus))
                 else:
@@ -188,23 +191,17 @@ def analyze_features_parallel(
     for _ in range(len(processes)):
         data_queue.put(None)  # Send termination signal
 
-    results: List[
-        Tuple[List[MaxActivationsForNeuron], List[AllActivationsForNeuron]]
-    ] = [result_queue.get() for _ in processes]
+    min_heaps: List[WorkerActivationsForNeuron] = [[]] * dictionary_size
+    all_activations: List[AllActivationsForNeuron] = [[]] * dictionary_size
 
-    all_min_heaps: List[List[MaxActivationsForNeuron]] = [
-        result[0] for result in results
-    ]
-    min_heaps: List[MaxActivationsForNeuron] = [
-        heapq.merge(*min_heaps) for min_heaps in zip(*all_min_heaps)
-    ]
-
-    all_activations_: List[List[AllActivationsForNeuron]] = [
-        result[1] for result in results
-    ]
-    all_activations: List[AllActivationsForNeuron] = [
-        chain(activations) for activations in zip(*all_activations_)
-    ]
+    for _ in processes:
+        min_heaps_, all_activations_ = result_queue.get()
+        for i, min_heap in enumerate(min_heaps_):
+            min_heaps[i] = heapq.nlargest(
+                top_feature_count, heapq.merge(min_heaps[i], min_heap)
+            )
+        for i, activations in enumerate(all_activations_):
+            all_activations[i].extend(activations)
 
     for p in processes:
         p.join()
@@ -213,9 +210,7 @@ def analyze_features_parallel(
         [
             [
                 Activation(example, token_focus, pos, -neg_activation)
-                for neg_activation, pos, example, token_focus in heapq.nlargest(
-                    top_feature_count, min_heap
-                )
+                for neg_activation, pos, example, token_focus in min_heap
             ]
             for min_heap in min_heaps
         ],
@@ -244,8 +239,7 @@ def run(args):
     dataset = load_dataset(dataset_path, split="train", streaming=True)
     data = (example["text"] for example in dataset.take(args.data_points))
 
-    # analysis_result = analyze_features_parallel(data, 4)
-    analysis_result = analyze_features(data)
+    analysis_result = analyze_features_parallel(data, 4)
 
     with open(args.pickle_location, "wb") as f:
         pickle.dump(analysis_result, f, pickle.HIGHEST_PROTOCOL)
