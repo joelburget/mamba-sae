@@ -29,3 +29,6 @@ sae_path = f"{sae_dir}/model-{sparsity_penalty}-{relative_size}.bin"
 # Where trained Mamba models are stored.
 model_dir = f"model-output-{d_model}"
 model_path = f"{model_dir}/pytorch_model.bin"
+
+# Where to load models.
+map_location = "cuda:0"

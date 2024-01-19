@@ -30,7 +30,7 @@ def make_model(state_dict_path: str) -> LanguageModel:
     2. Update it to use MambaForCausalLM names.
     3. Wrap in a LanguageModel.
     """
-    original_state_dict = torch.load(state_dict_path)
+    original_state_dict = torch.load(state_dict_path, map_location=map_location)
     renamed_state_dict = OrderedDict()
     for key in original_state_dict:
         new_key = key.replace("backbone", "model").replace(".mixer", "")

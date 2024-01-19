@@ -28,6 +28,7 @@ from params import (
     dataset_path,
     model_path,
     sae_path,
+    map_location,
 )
 
 tokenizer = Tokenizer()
@@ -67,7 +68,7 @@ class AnalysisResult:
 
 
 def analyze_features(data: IterableDataset) -> AnalysisResult:
-    ae_state_dict = torch.load(sae_path, map_location="cpu")
+    ae_state_dict = torch.load(sae_path, map_location=map_location)
     ae = AutoEncoder(d_model, dictionary_size)
     ae.load_state_dict(ae_state_dict)
     model = make_model(model_path)
@@ -110,7 +111,7 @@ def analyze_features(data: IterableDataset) -> AnalysisResult:
 
 
 def analyze_feature_worker(data_queue, result_queue):
-    ae_state_dict = torch.load(sae_path, map_location="cpu")
+    ae_state_dict = torch.load(sae_path, map_location=map_location)
     ae = AutoEncoder(d_model, dictionary_size)
     ae.load_state_dict(ae_state_dict)
     model = make_model(model_path)
