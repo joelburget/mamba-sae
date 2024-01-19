@@ -31,6 +31,7 @@ from params import (
 
 tokenizer = Tokenizer()
 excerpt_width = 2
+SIGNIFICANT_ACTIVATION_THRESHOLD = 0.01
 
 
 def activations_on_input(
@@ -131,8 +132,11 @@ def run(args):
         pickle.dump(analysis_result, f, pickle.HIGHEST_PROTOCOL)
 
     for i, activations in enumerate(analysis_result):
-        print(f"feature {i}:")
-        print_top_acts(activations)
+        if len(activations):
+            print(f"feature {i}:")
+            print_top_acts(activations)
+        else:
+            print(f"feature {i}: no significant activations")
 
 
 if __name__ == "__main__":
