@@ -244,13 +244,13 @@ def run(args):
     dataset = load_dataset(dataset_path, split="train", streaming=True)
     data = (example["text"] for example in dataset.take(args.data_points))
 
-    # analysis_result = analyze_features_parallel(data, 4).max_activations
-    analysis_result = analyze_features(data).max_activations
+    # analysis_result = analyze_features_parallel(data, 4)
+    analysis_result = analyze_features(data)
 
     with open(args.pickle_location, "wb") as f:
         pickle.dump(analysis_result, f, pickle.HIGHEST_PROTOCOL)
 
-    for i, activations in enumerate(analysis_result):
+    for i, activations in enumerate(analysis_result.max_activations):
         if len(activations):
             print(f"feature {i}:")
             print_top_acts(activations)
