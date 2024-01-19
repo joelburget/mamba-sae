@@ -75,53 +75,6 @@ class AnalysisResult:
     # TODO: logits
 
 
-def analyze_features(data: IterableDataset) -> AnalysisResult:
-    ae_state_dict = torch.load(sae_path, map_location=map_location)
-    ae = AutoEncoder(d_model, dictionary_size)
-    ae.load_state_dict(ae_state_dict)
-    model = make_model(model_path)
-
-    min_heaps = [[] for _ in range(dictionary_size)]
-    all_activations = [[] for _ in range(dictionary_size)]
-
-    for example in tqdm(data):
-        # activations has dimensions [seq_len, dictionary_size]
-        tokens = tokenizer(example)["input_ids"]
-        activations = activations_on_input(model, ae, tokens)
-        seq_len = len(tokens)
-
-        for feature_n in range(dictionary_size):
-            min_heap = min_heaps[feature_n]
-            activations_for_feature = all_activations[feature_n]
-            for pos in range(seq_len):
-                token_focus = TokenFocus(
-                    tokens[max(0, pos - excerpt_width) : pos],
-                    tokens[pos],
-                    tokens[pos + 1 : pos + excerpt_width],
-                )
-                activation = activations[pos, feature_n].item()
-                activations_for_feature.append(activation)
-                if activation < SIGNIFICANT_ACTIVATION_THRESHOLD:
-                    continue
-                if len(min_heap) < top_feature_count:
-                    heapq.heappush(min_heap, (-activation, pos, example, token_focus))
-                else:
-                    heapq.heappushpop(
-                        min_heap, (-activation, pos, example, token_focus)
-                    )
-
-    return AnalysisResult(
-        [
-            [
-                Activation(example, token_focus, pos, -neg_activation)
-                for neg_activation, pos, example, token_focus in min_heap
-            ]
-            for min_heap in min_heaps
-        ],
-        all_activations,
-    )
-
-
 def analyze_feature_worker(data_queue, result_queue):
     ae_state_dict = torch.load(sae_path, map_location=map_location)
     ae = AutoEncoder(d_model, dictionary_size)
