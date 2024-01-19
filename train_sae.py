@@ -18,6 +18,7 @@ from params import (
     sae_dir,
     sae_path,
     model_path,
+    map_location,
 )
 
 mamba_config = MambaConfig(n_layer=1, d_model=d_model)
