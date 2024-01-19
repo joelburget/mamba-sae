@@ -115,13 +115,6 @@ def analyze_feature_worker(data_queue, result_queue):
     result_queue.put((min_heaps, all_activations))
 
 
-def chain(lists: Tuple[List[T]]) -> List[T]:
-    result = []
-    for l in lists:
-        result.extend(l)
-    return result
-
-
 def analyze_features_parallel(
     data: IterableDataset,
     num_workers: int,
