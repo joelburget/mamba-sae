@@ -12,7 +12,7 @@ dictionary_size = relative_size * d_model
 
 # Which dataset to use. This is passed to Huggingface's load_dataset() function
 # so it can be the name of a HF dataset.
-dataset_path = "/mnt/hddraid/pile-uncopyrighted"
+dataset_path = "monology/pile-uncopyrighted"
 
 # Train a separate SAE for each of these sparsity penalties.
 sparsity_penalties = [0.004, 0.006, 0.008, 0.01]
