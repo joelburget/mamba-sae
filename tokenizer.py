@@ -1,11 +1,15 @@
 from transformers import AutoTokenizer
 
+# Turn off "Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained."
+# import logging
+# logging.getLogger("transformers.tokenization_utils_base").disabled = True
+
 
 class Tokenizer:
-
     def __init__(self):
-        self.wrapped = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b",
-                                                     padding_side="left")
+        self.wrapped = AutoTokenizer.from_pretrained(
+            "EleutherAI/gpt-neox-20b", padding_side="left"
+        )
         self.wrapped.eos_token = "<|endoftext|>"
         self.wrapped.pad_token = self.wrapped.eos_token
         self.bos_token_id = self.wrapped.bos_token_id
