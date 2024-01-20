@@ -36,8 +36,6 @@ excerpt_width = 2
 top_feature_count = 4
 SIGNIFICANT_ACTIVATION_THRESHOLD = 0.01
 
-T = TypeVar("T")
-
 
 def activations_on_input(
     model: LanguageModel, ae: AutoEncoder, tokens: List[int]
