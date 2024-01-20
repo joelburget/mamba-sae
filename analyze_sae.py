@@ -17,7 +17,7 @@ import torch
 import torch.multiprocessing as mp
 from datasets import IterableDataset, load_dataset
 from nnsight import LanguageModel
-from rich.progress import Progress
+from rich.progress import Progress, BarColumn, TimeRemainingColumn, MofNCompleteColumn
 
 from dictionary_learning.dictionary import AutoEncoder
 from tokenizer import Tokenizer
@@ -138,7 +138,11 @@ def collator(pickle_location: str, result_queue: mp.Queue, data_len: int):
             pickle.dump(analysis_result, f, pickle.HIGHEST_PROTOCOL)
 
     example_count = 0
-    with Progress() as progress:
+    with Progress(
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeRemainingColumn(),
+    ) as progress:
         progress_bar = progress.add_task("Progress...", total=data_len)
         while True:
             result = result_queue.get()
