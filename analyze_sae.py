@@ -54,17 +54,18 @@ class TokenFocus:
     focal_token: int
     right_context: List[int]
 
+    def __lt__(self, other):
+        return self.focal_token < other.focal_token
+
 
 @dataclass
 class Activation:
-    input: str
     token_focus: TokenFocus
-    position: int
     strength: float
 
 
 MaxActivationsForNeuron = List[Activation]
-WorkerActivationsForNeuron = List[Tuple[float, int, str, TokenFocus]]
+WorkerActivationsForNeuron = List[Tuple[float, TokenFocus]]
 AllActivationsForNeuron = List[float]
 
 
@@ -81,20 +82,20 @@ def analyze_feature_worker(data_queue, result_queue):
     ae.load_state_dict(ae_state_dict)
     model = make_model(model_path)
 
-    min_heaps = [[] for _ in range(dictionary_size)]
-    all_activations = [[] for _ in range(dictionary_size)]
     while True:
         example = data_queue.get()
         if example is None:
             break  # End of data
+
+        result = []
+        for _ in range(dictionary_size):
+            result.append([])
 
         tokens = tokenizer(example)["input_ids"]
         activations = activations_on_input(model, ae, tokens)
         seq_len = len(tokens)
 
         for feature_n in range(dictionary_size):
-            min_heap = min_heaps[feature_n]
-            activations_for_feature = all_activations[feature_n]
             for pos in range(seq_len):
                 token_focus = TokenFocus(
                     tokens[max(0, pos - excerpt_width) : pos],
@@ -102,61 +103,20 @@ def analyze_feature_worker(data_queue, result_queue):
                     tokens[pos + 1 : pos + excerpt_width],
                 )
                 activation = activations[pos, feature_n].item()
-                activations_for_feature.append(activation)
-                if activation < SIGNIFICANT_ACTIVATION_THRESHOLD:
-                    continue
-                if len(min_heap) < top_feature_count:
-                    heapq.heappush(min_heap, (-activation, pos, example, token_focus))
-                else:
-                    heapq.heappushpop(
-                        min_heap, (-activation, pos, example, token_focus)
-                    )
+                result[feature_n].append((activation, token_focus))
 
-    result_queue.put((min_heaps, all_activations))
+        result_queue.put(result)
 
 
-def analyze_features_parallel(
-    data: IterableDataset,
-    num_workers: int,
+def make_analysis_result(
+    min_heaps: List[WorkerActivationsForNeuron],
+    all_activations: List[AllActivationsForNeuron],
 ) -> AnalysisResult:
-    data_queue = mp.Queue(maxsize=num_workers)
-    result_queue = mp.Queue()
-
-    processes = []
-    for _ in range(num_workers):
-        p = mp.Process(
-            target=analyze_feature_worker,
-            args=(data_queue, result_queue),
-        )
-        p.start()
-        processes.append(p)
-
-    # Distribute data among workers
-    for example in tqdm(data):
-        data_queue.put(example)
-    for _ in range(len(processes)):
-        data_queue.put(None)  # Send termination signal
-
-    min_heaps: List[WorkerActivationsForNeuron] = [[]] * dictionary_size
-    all_activations: List[AllActivationsForNeuron] = [[]] * dictionary_size
-
-    for _ in processes:
-        min_heaps_, all_activations_ = result_queue.get()
-        for i, min_heap in enumerate(min_heaps_):
-            min_heaps[i] = heapq.nlargest(
-                top_feature_count, heapq.merge(min_heaps[i], min_heap)
-            )
-        for i, activations in enumerate(all_activations_):
-            all_activations[i].extend(activations)
-
-    for p in processes:
-        p.join()
-
     return AnalysisResult(
         [
             [
-                Activation(example, token_focus, pos, -neg_activation)
-                for neg_activation, pos, example, token_focus in min_heap
+                Activation(token_focus, -neg_activation)
+                for neg_activation, token_focus in min_heap
             ]
             for min_heap in min_heaps
         ],
@@ -164,13 +124,86 @@ def analyze_features_parallel(
     )
 
 
+def collator(pickle_location: str, result_queue: mp.Queue):
+    min_heaps: List[WorkerActivationsForNeuron] = []
+    all_activations: List[AllActivationsForNeuron] = []
+    for _ in range(dictionary_size):
+        min_heaps.append([])
+        all_activations.append([])
+
+    def save(analysis_result: AnalysisResult):
+        with open(pickle_location, "wb") as f:
+            pickle.dump(analysis_result, f, pickle.HIGHEST_PROTOCOL)
+
+    example_count = 0
+    while True:
+        result = result_queue.get()
+        if result is None:
+            break
+
+        for feature_n, activations in enumerate(result):
+            for (activation, token_focus) in activations:
+                all_activations[feature_n].append(activation)
+                min_heap = min_heaps[feature_n]
+                if activation < SIGNIFICANT_ACTIVATION_THRESHOLD:
+                    continue
+                if len(min_heap) < top_feature_count:
+                    heapq.heappush(min_heap, (-activation, token_focus))
+                else:
+                    heapq.heappushpop(min_heap, (-activation, token_focus))
+
+        example_count += 1
+        if example_count % 1000 == 0:
+            print(f"Processed {example_count} examples, saving checkpoint")
+            save(make_analysis_result(min_heaps, all_activations))
+
+    analysis_result = make_analysis_result(min_heaps, all_activations)
+    save(analysis_result)
+
+    for i, activations in enumerate(analysis_result.max_activations):
+        if len(activations):
+            print(f"feature {i}:")
+            print_top_acts(activations)
+        else:
+            print(f"feature {i}: no significant activations")
+
+
+def analyze_features_parallel(
+    data: IterableDataset, num_workers: int, pickle_location: str
+):
+    data_queue = mp.Queue(maxsize=num_workers)
+    result_queue = mp.Queue()
+
+    collator_process = mp.Process(target=collator, args=(pickle_location, result_queue))
+    collator_process.start()
+
+    worker_processes = []
+    for _ in range(num_workers):
+        p = mp.Process(
+            target=analyze_feature_worker,
+            args=(data_queue, result_queue),
+        )
+        p.start()
+        worker_processes.append(p)
+
+    # Distribute data among workers
+    for example in tqdm(data):
+        data_queue.put(example)
+    for _ in range(len(worker_processes)):
+        data_queue.put(None)  # Send termination signal
+
+    for p in worker_processes:
+        p.join(10)
+
+    result_queue.put(None)
+    collator_process.join(10)
+
+
 def print_top_acts(acts: List[Activation]):
     for activation in acts:
         match activation:
             case Activation(
-                _input,
                 TokenFocus(left_context, focal_token, right_context),
-                _position,
                 score,
             ):
                 left_str = tokenizer.decode(left_context)
@@ -184,18 +217,7 @@ def print_top_acts(acts: List[Activation]):
 def run(args):
     dataset = load_dataset(dataset_path, split="train", streaming=True)
     data = (example["text"] for example in dataset.take(args.data_points))
-
-    analysis_result = analyze_features_parallel(data, 4)
-
-    with open(args.pickle_location, "wb") as f:
-        pickle.dump(analysis_result, f, pickle.HIGHEST_PROTOCOL)
-
-    for i, activations in enumerate(analysis_result.max_activations):
-        if len(activations):
-            print(f"feature {i}:")
-            print_top_acts(activations)
-        else:
-            print(f"feature {i}: no significant activations")
+    analyze_features_parallel(data, 4, args.pickle_location)
 
 
 if __name__ == "__main__":
