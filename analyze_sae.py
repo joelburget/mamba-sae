@@ -131,8 +131,12 @@ def collator(pickle_location: str, result_queue: mp.Queue):
         min_heaps.append([])
         all_activations.append([])
 
-    def save(analysis_result: AnalysisResult):
-        with open(pickle_location, "wb") as f:
+    def save(analysis_result: AnalysisResult, n=None):
+        save_location = pickle_location
+        if n is not None:
+            save_location += f".{n}"
+
+        with open(save_location, "wb") as f:
             pickle.dump(analysis_result, f, pickle.HIGHEST_PROTOCOL)
 
     example_count = 0
@@ -155,7 +159,10 @@ def collator(pickle_location: str, result_queue: mp.Queue):
         example_count += 1
         if example_count % 1000 == 0:
             print(f"Processed {example_count} examples, saving checkpoint")
-            save(make_analysis_result(min_heaps, all_activations))
+            save(
+                make_analysis_result(min_heaps, all_activations),
+                n=example_count // 1000,
+            )
 
     analysis_result = make_analysis_result(min_heaps, all_activations)
     save(analysis_result)
