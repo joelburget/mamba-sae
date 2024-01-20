@@ -172,13 +172,7 @@ def collator(pickle_location: str, result_queue: mp.Queue, data_len: int):
 
     analysis_result = make_analysis_result(min_heaps, all_activations)
     save(analysis_result)
-
-    for i, activations in enumerate(analysis_result.max_activations):
-        if len(activations):
-            print(f"feature {i}:")
-            print_top_acts(activations)
-        else:
-            print(f"feature {i}: no significant activations")
+    print_analysis(analysis_result)
 
 
 def analyze_features_parallel(
@@ -227,6 +221,15 @@ def print_top_acts(acts: List[Activation]):
                 print(
                     f"  \033[1m{score}\033[0m: {left_str}\033[1m{focus}\033[0m{right_str}"
                 )
+
+
+def print_analysis(analysis_result: AnalysisResult):
+    for i, activations in enumerate(analysis_result.max_activations):
+        if len(activations):
+            print(f"feature {i}:")
+            print_top_acts(activations)
+        else:
+            print(f"feature {i}: no significant activations")
 
 
 def run(args):
