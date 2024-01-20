@@ -1,7 +1,13 @@
 import argparse
 import pickle
 
-from analyze_sae import print_analysis
+# These imports are necessary to unpickle the data
+from analyze_sae import (
+    AnalysisResult,
+    Activation,
+    TokenFocus,
+    print_analysis,
+)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
