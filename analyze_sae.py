@@ -17,7 +17,7 @@ import torch
 import torch.multiprocessing as mp
 from datasets import IterableDataset, load_dataset
 from nnsight import LanguageModel
-from tqdm import tqdm
+from rich.progress import Progress
 
 from dictionary_learning.dictionary import AutoEncoder
 from tokenizer import Tokenizer
@@ -124,7 +124,7 @@ def make_analysis_result(
     )
 
 
-def collator(pickle_location: str, result_queue: mp.Queue):
+def collator(pickle_location: str, result_queue: mp.Queue, data_len: int):
     min_heaps: List[WorkerActivationsForNeuron] = []
     all_activations: List[AllActivationsForNeuron] = []
     for _ in range(dictionary_size):
@@ -140,29 +140,33 @@ def collator(pickle_location: str, result_queue: mp.Queue):
             pickle.dump(analysis_result, f, pickle.HIGHEST_PROTOCOL)
 
     example_count = 0
-    while True:
-        result = result_queue.get()
-        if result is None:
-            break
+    with Progress() as progress:
+        progress_bar = progress.add_task("Progress...", total=data_len)
+        while True:
+            result = result_queue.get()
+            if result is None:
+                break
 
-        for feature_n, activations in enumerate(result):
-            for (activation, token_focus) in activations:
-                all_activations[feature_n].append(activation)
-                min_heap = min_heaps[feature_n]
-                if activation < SIGNIFICANT_ACTIVATION_THRESHOLD:
-                    continue
-                if len(min_heap) < top_feature_count:
-                    heapq.heappush(min_heap, (-activation, token_focus))
-                else:
-                    heapq.heappushpop(min_heap, (-activation, token_focus))
+            for feature_n, activations in enumerate(result):
+                for (activation, token_focus) in activations:
+                    all_activations[feature_n].append(activation)
+                    min_heap = min_heaps[feature_n]
+                    if activation < SIGNIFICANT_ACTIVATION_THRESHOLD:
+                        continue
+                    if len(min_heap) < top_feature_count:
+                        heapq.heappush(min_heap, (-activation, token_focus))
+                    else:
+                        heapq.heappushpop(min_heap, (-activation, token_focus))
 
-        example_count += 1
-        if example_count % 1000 == 0:
-            print(f"Processed {example_count} examples, saving checkpoint")
-            save(
-                make_analysis_result(min_heaps, all_activations),
-                n=example_count // 1000,
-            )
+            example_count += 1
+            progress.update(progress_bar, advance=1)
+
+            if example_count % 1000 == 0:
+                print(f"Processed {example_count} examples, saving checkpoint")
+                save(
+                    make_analysis_result(min_heaps, all_activations),
+                    n=example_count // 1000,
+                )
 
     analysis_result = make_analysis_result(min_heaps, all_activations)
     save(analysis_result)
@@ -176,12 +180,14 @@ def collator(pickle_location: str, result_queue: mp.Queue):
 
 
 def analyze_features_parallel(
-    data: IterableDataset, num_workers: int, pickle_location: str
+    data: IterableDataset, data_len: int, num_workers: int, pickle_location: str
 ):
     data_queue = mp.Queue(maxsize=num_workers)
     result_queue = mp.Queue()
 
-    collator_process = mp.Process(target=collator, args=(pickle_location, result_queue))
+    collator_process = mp.Process(
+        target=collator, args=(pickle_location, result_queue, data_len)
+    )
     collator_process.start()
 
     worker_processes = []
@@ -194,8 +200,8 @@ def analyze_features_parallel(
         worker_processes.append(p)
 
     # Distribute data among workers
-    for example in tqdm(data):
-        data_queue.put(example)
+    for example in data:
+        data_queue.put(example[:20])
     for _ in range(len(worker_processes)):
         data_queue.put(None)  # Send termination signal
 
@@ -224,7 +230,7 @@ def print_top_acts(acts: List[Activation]):
 def run(args):
     dataset = load_dataset(dataset_path, split="train", streaming=True)
     data = (example["text"] for example in dataset.take(args.data_points))
-    analyze_features_parallel(data, 4, args.pickle_location)
+    analyze_features_parallel(data, args.data_points, 4, args.pickle_location)
 
 
 if __name__ == "__main__":
