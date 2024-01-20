@@ -1,8 +1,8 @@
+import logging
 from transformers import AutoTokenizer
 
 # Turn off "Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained."
-# import logging
-# logging.getLogger("transformers.tokenization_utils_base").disabled = True
+logging.getLogger("transformers.tokenization_utils_base").disabled = True
 
 
 class Tokenizer:
