@@ -10,3 +10,4 @@ zstandard
 tqdm
 nnsight
 matplotlib
+rich
