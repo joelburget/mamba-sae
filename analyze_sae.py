@@ -32,7 +32,7 @@ from params import (
 )
 
 tokenizer = Tokenizer()
-excerpt_width = 2
+excerpt_width = 4
 top_feature_count = 4
 SIGNIFICANT_ACTIVATION_THRESHOLD = 0.01
 
