@@ -12,8 +12,8 @@ model.load_state_dict(torch.load(model_path))
 model.cuda()
 
 
-def generate(input: str) -> str:
+def generate(input: str, max_length=50) -> str:
     tokens = tokenizer(input)
     input_ids = torch.tensor([tokens["input_ids"]]).cuda()
-    generation = model.generate(input_ids, max_length=50)
+    generation = model.generate(input_ids, max_length=max_length)
     return tokenizer.decode(generation[0])
