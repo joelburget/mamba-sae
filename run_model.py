@@ -8,7 +8,7 @@ from params import d_model, model_path
 tokenizer = Tokenizer()
 
 model = MambaLMHeadModel(MambaConfig(n_layer=1, d_model=d_model))
-model.load_state_dict(torch.load(model_path)
+model.load_state_dict(torch.load(model_path))
 model.cuda()
 
 
