@@ -24,13 +24,7 @@ from params import (
 mamba_config = MambaConfig(n_layer=1, d_model=d_model)
 
 
-def make_model(state_dict_path: str) -> LanguageModel:
-    """Make a LanguageModel from a state dict.
-
-    1. Load state dict.
-    2. Update it to use MambaForCausalLM names.
-    3. Wrap in a LanguageModel.
-    """
+def make_automodel(state_dict_path: str) -> MambaForCausalLM:
     original_state_dict = torch.load(state_dict_path, map_location=map_location)
     renamed_state_dict = OrderedDict()
     for key in original_state_dict:
@@ -40,8 +34,17 @@ def make_model(state_dict_path: str) -> LanguageModel:
     automodel = MambaForCausalLM(mamba_config)
     automodel.load_state_dict(renamed_state_dict)
     # automodel.cuda()
-    tokenizer = Tokenizer()
-    return LanguageModel(automodel, tokenizer=tokenizer)
+    return automodel
+
+
+def make_model(state_dict_path: str) -> LanguageModel:
+    """Make a LanguageModel from a state dict.
+
+    1. Load state dict.
+    2. Update it to use MambaForCausalLM names.
+    3. Wrap in a LanguageModel.
+    """
+    return LanguageModel(make_automodel(state_dict_path), tokenizer=Tokenizer())
 
 
 if __name__ == "__main__":
