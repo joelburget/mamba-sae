@@ -17,7 +17,8 @@ from params import (
     relative_sizes,
     dataset_path,
     model_path,
-    sae_path,
+    # sae_path,
+    sae_dir,
 )
 
 
@@ -32,8 +33,12 @@ if __name__ == "__main__":
         for relative_size in tqdm(
             relative_sizes, desc="relative_size", position=1, leave=False
         ):
+            sae_path = f"{sae_dir}/model-{sparsity_penalty}-{relative_size}.bin"
             ae_state_dict = torch.load(sae_path)
+            print(sae_path)
             ae = AutoEncoder(d_model, d_model * relative_size)
+            print(d_model, relative_size)
+            print(ae)
             ae.load_state_dict(ae_state_dict)
 
             dataset = load_dataset(dataset_path, split="train", streaming=True)

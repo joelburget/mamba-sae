@@ -1,5 +1,6 @@
 import os
 from collections import OrderedDict
+import wandb
 
 import torch
 from datasets import load_dataset
@@ -16,13 +17,12 @@ from params import (
     sparsity_penalties,
     relative_sizes,
     sae_dir,
-    sae_path,
+    # sae_path,
     model_path,
     map_location,
 )
 
 mamba_config = MambaConfig(n_layer=1, d_model=d_model)
-
 
 def make_model(state_dict_path: str) -> LanguageModel:
     """Make a LanguageModel from a state dict.
@@ -47,6 +47,8 @@ def make_model(state_dict_path: str) -> LanguageModel:
 if __name__ == "__main__":
     dataset = load_dataset(dataset_path, split="train", streaming=True)
     model = make_model(model_path)
+    if not os.path.exists(sae_dir):
+        os.makedirs(sae_dir)
 
     for sparsity_penalty in tqdm(
         sparsity_penalties, desc="sparsity_penalty", position=0
@@ -54,6 +56,24 @@ if __name__ == "__main__":
         for relative_size in tqdm(
             relative_sizes, desc="relative_size", position=1, leave=False
         ):
+            if sparsity_penalty == 0.004 and relative_size == 4:
+                # already trained
+                continue
+
+            lr = 3e-4
+            dictionary_size=relative_size * d_model
+
+            run = wandb.init(
+                project="mamba-1l",
+                config={
+                    "sparsity_penalty": sparsity_penalty,
+                    "relative_size": relative_size,
+                    "learning_rate": lr,
+                    "dictionary_size": dictionary_size,
+                    "d_model": d_model,
+                },
+            )
+
             buffer = ActivationBuffer(
                 data=(example["text"] for example in dataset.take(200_000)),
                 model=model,
@@ -65,12 +85,11 @@ if __name__ == "__main__":
             ae = trainSAE(
                 activations=buffer,
                 activation_dim=d_model,
-                dictionary_size=relative_size * d_model,
-                lr=3e-4,
+                dictionary_size=dictionary_size,
+                lr=lr,
                 sparsity_penalty=sparsity_penalty,
                 device="cuda:0",
             )
 
-            if not os.path.exists(sae_dir):
-                os.makedirs(sae_dir)
+            sae_path = f"{sae_dir}/model-{sparsity_penalty}-{relative_size}.bin"
             torch.save(ae.state_dict(), sae_path)

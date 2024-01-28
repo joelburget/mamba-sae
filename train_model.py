@@ -82,7 +82,7 @@ def run(args):
             output_dir=model_dir,
             logging_steps=50,
             save_steps=500,
-            max_steps=51_001,
+            max_steps=100_000,
             report_to="wandb",
         ),
         data_collator=data_collator,
