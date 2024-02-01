@@ -1,6 +1,5 @@
 import os
 from collections import OrderedDict
-import wandb
 
 import torch
 from datasets import load_dataset
@@ -56,23 +55,8 @@ if __name__ == "__main__":
         for relative_size in tqdm(
             relative_sizes, desc="relative_size", position=1, leave=False
         ):
-            if sparsity_penalty == 0.004 and relative_size == 4:
-                # already trained
-                continue
-
             lr = 3e-4
             dictionary_size=relative_size * d_model
-
-            run = wandb.init(
-                project="mamba-1l",
-                config={
-                    "sparsity_penalty": sparsity_penalty,
-                    "relative_size": relative_size,
-                    "learning_rate": lr,
-                    "dictionary_size": dictionary_size,
-                    "d_model": d_model,
-                },
-            )
 
             buffer = ActivationBuffer(
                 data=(example["text"] for example in dataset.take(200_000)),
