@@ -1,5 +1,5 @@
 # The Mamba model's internal dimension
-d_model = 320
+d_model = 640
 
 # The size of the SAE dictionary relative to d_model. Used only in analyze_sae.py.
 relative_size = 4

@@ -50,6 +50,8 @@ def make_model(state_dict_path: str) -> LanguageModel:
 if __name__ == "__main__":
     dataset = load_dataset(dataset_path, split="train", streaming=True)
     model = make_model(model_path)
+    if not os.path.exists(sae_dir):
+        os.makedirs(sae_dir)
 
     for sparsity_penalty in tqdm(
         sparsity_penalties, desc="sparsity_penalty", position=0
@@ -57,6 +59,9 @@ if __name__ == "__main__":
         for relative_size in tqdm(
             relative_sizes, desc="relative_size", position=1, leave=False
         ):
+            lr = 3e-4
+            dictionary_size = relative_size * d_model
+
             buffer = ActivationBuffer(
                 data=(example["text"] for example in dataset.take(200_000)),
                 model=model,
@@ -68,12 +73,10 @@ if __name__ == "__main__":
             ae = trainSAE(
                 activations=buffer,
                 activation_dim=d_model,
-                dictionary_size=relative_size * d_model,
-                lr=3e-4,
+                dictionary_size=dictionary_size,
+                lr=lr,
                 sparsity_penalty=sparsity_penalty,
                 device="cuda:0",
             )
 
-            if not os.path.exists(sae_dir):
-                os.makedirs(sae_dir)
             torch.save(ae.state_dict(), sae_path)
