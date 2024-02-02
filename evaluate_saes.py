@@ -18,6 +18,7 @@ from params import (
     dataset_path,
     model_path,
     sae_dir,
+    map_location,
 )
 
 
@@ -33,7 +34,7 @@ if __name__ == "__main__":
             relative_sizes, desc="relative_size", position=1, leave=False
         ):
             sae_path = f"{sae_dir}/model-{sparsity_penalty}-{relative_size}.bin"
-            ae_state_dict = torch.load(sae_path)
+            ae_state_dict = torch.load(sae_path, map_location=map_location)
             ae = AutoEncoder(d_model, d_model * relative_size)
             ae.load_state_dict(ae_state_dict)
 
