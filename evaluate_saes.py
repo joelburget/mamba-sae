@@ -26,6 +26,7 @@ if __name__ == "__main__":
     tokenizer = Tokenizer()
     model = make_model(model_path)
     submodule = model.model.layers[0]
+    ctx_len = 128
 
     for sparsity_penalty in tqdm(
         sparsity_penalties, desc="sparsity_penalty", position=0
@@ -39,12 +40,7 @@ if __name__ == "__main__":
             ae.load_state_dict(ae_state_dict)
 
             dataset = load_dataset(dataset_path, split="train", streaming=True)
-            data = (
-                example["text"]
-                for example in dataset.filter(lambda example: len(example) < 5000).take(
-                    500 * 128
-                )
-            )
+            data = ( example["text"] for example in dataset )
 
             buffer = ActivationBuffer(
                 data=data,
@@ -52,8 +48,8 @@ if __name__ == "__main__":
                 submodule=submodule,
                 in_feats=d_model,
                 out_feats=d_model,
-                n_ctxs=500,
-                # ctx_len=32,
+                ctx_len=ctx_len,
+                in_batch_size=64,
             )
 
             result = evaluate(model, submodule, ae, buffer)

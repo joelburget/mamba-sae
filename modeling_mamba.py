@@ -329,7 +329,7 @@ class MambaForCausalLM(MambaPreTrainedModel):
         labels: Optional[torch.LongTensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = True,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         outputs = self.model(
             input_ids=input_ids,
