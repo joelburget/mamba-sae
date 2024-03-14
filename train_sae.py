@@ -8,6 +8,8 @@ from tqdm import tqdm
 
 from dictionary_learning.buffer import ActivationBuffer
 from dictionary_learning.training import trainSAE
+from dictionary_learning.evaluation import evaluate
+
 from modeling_mamba import MambaConfig, MambaForCausalLM
 from tokenizer import Tokenizer
 from params import (
@@ -50,6 +52,7 @@ def make_model(state_dict_path: str) -> LanguageModel:
 if __name__ == "__main__":
     dataset = load_dataset(dataset_path, split="train", streaming=True)
     model = make_model(model_path)
+    lr = 3e-4
     if not os.path.exists(sae_dir):
         os.makedirs(sae_dir)
 
@@ -59,13 +62,13 @@ if __name__ == "__main__":
         for relative_size in tqdm(
             relative_sizes, desc="relative_size", position=1, leave=False
         ):
-            lr = 3e-4
             dictionary_size = relative_size * d_model
+            submodule = model.model.layers[0]
 
             buffer = ActivationBuffer(
                 data=(example["text"] for example in dataset.take(200_000)),
                 model=model,
-                submodule=model.model.layers[0],
+                submodule=submodule,
                 in_feats=d_model,
                 out_feats=d_model,
             )
@@ -78,5 +81,7 @@ if __name__ == "__main__":
                 sparsity_penalty=sparsity_penalty,
                 device="cuda:0",
             )
+
+            print(evaluate(model, submodule, ae, buffer))
 
             torch.save(ae.state_dict(), sae_path)
