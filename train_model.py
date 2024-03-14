@@ -82,6 +82,7 @@ def run(args):
             output_dir=model_dir,
             logging_steps=50,
             save_steps=500,
+            save_total_limit=8,
             max_steps=100_000,
             report_to="wandb",
         ),
