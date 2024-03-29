@@ -12,4 +12,4 @@ nnsight
 matplotlib
 rich
 causal-conv1d>=1.2.0
-sae_training @ git+https://github.com/jbloomAus/mats_sae_training.git@main
+mats_sae_training @ git+https://github.com/jbloomAus/mats_sae_training.git@main
