@@ -19,11 +19,12 @@ from params import (
     sae_dir,
     map_location,
 )
+from tokenizer import Tokenizer
 
 
 if __name__ == "__main__":
     model = MambaForCausalLM.from_pretrained(model_path)
-    tokenizer = model.tokenizer
+    tokenizer = Tokenizer()
     submodule = model.model.layers[0]
     ctx_len = 128
 

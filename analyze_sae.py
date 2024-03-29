@@ -30,6 +30,7 @@ from params import (
     sae_path,
     map_location,
 )
+from tokenizer import Tokenizer
 
 excerpt_width = 4
 top_feature_count = 4
@@ -78,6 +79,7 @@ def analyze_feature_worker(data_queue, result_queue):
     ae = AutoEncoder(d_model, dictionary_size)
     ae.load_state_dict(ae_state_dict)
     model = MambaForCausalLM.from_pretrained(model_path)
+    tokenizer = Tokenizer()
 
     while True:
         example = data_queue.get()
@@ -88,7 +90,7 @@ def analyze_feature_worker(data_queue, result_queue):
         for _ in range(dictionary_size):
             result.append([])
 
-        tokens = model.tokenizer(example)["input_ids"]
+        tokens = tokenizer(example)["input_ids"]
         activations = activations_on_input(model, ae, tokens)
         seq_len = len(tokens)
 
@@ -208,8 +210,7 @@ def analyze_features_parallel(
 
 
 def print_top_acts(acts: List[Activation]):
-    model = MambaForCausalLM.from_pretrained(model_path)
-    tokenizer = model.tokenizer
+    tokenizer = Tokenizer()
     for activation in acts:
         match activation:
             case Activation(

@@ -12,6 +12,7 @@ from transformers import (
     MambaForCausalLM,
 )
 from params import d_model, dataset_path, model_dir, model_path
+from tokenizer import Tokenizer
 
 os.environ["WANDB_PROJECT"] = "mamba-1l"
 os.environ["WANDB_LOG_MODEL"] = "false"
@@ -46,7 +47,7 @@ class MambaTrainer(Trainer):
 
 def run(args):
     model = MambaForCausalLM(MambaConfig(n_layer=1, d_model=d_model))
-    tokenizer = model.tokenizer
+    tokenizer = Tokenizer()
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
