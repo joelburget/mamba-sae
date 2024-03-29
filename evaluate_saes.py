@@ -5,12 +5,11 @@ Output statistics for each SAE.
 import torch
 from datasets import load_dataset
 from tqdm import tqdm
+from transformers import MambaForCausalLM
 
 from dictionary_learning.buffer import ActivationBuffer
 from dictionary_learning.dictionary import AutoEncoder
 from dictionary_learning.evaluation import evaluate
-from tokenizer import Tokenizer
-from train_sae import make_model
 from params import (
     d_model,
     sparsity_penalties,
@@ -23,8 +22,8 @@ from params import (
 
 
 if __name__ == "__main__":
-    tokenizer = Tokenizer()
-    model = make_model(model_path)
+    model = MambaForCausalLM.from_pretrained(model_path)
+    tokenizer = model.tokenizer
     submodule = model.model.layers[0]
     ctx_len = 128
 
@@ -40,7 +39,7 @@ if __name__ == "__main__":
             ae.load_state_dict(ae_state_dict)
 
             dataset = load_dataset(dataset_path, split="train", streaming=True)
-            data = ( example["text"] for example in dataset )
+            data = (example["text"] for example in dataset)
 
             buffer = ActivationBuffer(
                 data=data,

@@ -1,17 +1,14 @@
 import os
-from collections import OrderedDict
 
 import torch
 from datasets import load_dataset
-from nnsight import LanguageModel
 from tqdm import tqdm
+from transformers import MambaForCausalLM
 
 from dictionary_learning.buffer import ActivationBuffer
 from dictionary_learning.training import trainSAE
 from dictionary_learning.evaluation import evaluate
 
-from modeling_mamba import MambaConfig, MambaForCausalLM
-from tokenizer import Tokenizer
 from params import (
     d_model,
     dataset_path,
@@ -20,38 +17,11 @@ from params import (
     sae_dir,
     sae_path,
     model_path,
-    map_location,
 )
-
-mamba_config = MambaConfig(n_layer=1, d_model=d_model)
-
-
-def make_automodel(state_dict_path: str) -> MambaForCausalLM:
-    original_state_dict = torch.load(state_dict_path, map_location=map_location)
-    renamed_state_dict = OrderedDict()
-    for key in original_state_dict:
-        new_key = key.replace("backbone", "model").replace(".mixer", "")
-        renamed_state_dict[new_key] = original_state_dict[key]
-
-    automodel = MambaForCausalLM(mamba_config)
-    automodel.load_state_dict(renamed_state_dict)
-    # automodel.cuda()
-    return automodel
-
-
-def make_model(state_dict_path: str) -> LanguageModel:
-    """Make a LanguageModel from a state dict.
-
-    1. Load state dict.
-    2. Update it to use MambaForCausalLM names.
-    3. Wrap in a LanguageModel.
-    """
-    return LanguageModel(make_automodel(state_dict_path), tokenizer=Tokenizer())
-
 
 if __name__ == "__main__":
     dataset = load_dataset(dataset_path, split="train", streaming=True)
-    model = make_model(model_path)
+    model = MambaForCausalLM.from_pretrained(model_path)
     lr = 3e-4
     if not os.path.exists(sae_dir):
         os.makedirs(sae_dir)

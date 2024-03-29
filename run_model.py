@@ -1,11 +1,10 @@
 import torch
+from transformers import MambaForCausalLM
 
-from train_sae import make_automodel
-from tokenizer import Tokenizer
 from params import model_path
 
-tokenizer = Tokenizer()
-model = make_automodel(model_path)
+model = MambaForCausalLM.from_pretrained(model_path)
+tokenizer = model.tokenizer
 
 
 def generate(input: str, max_length=50) -> str:

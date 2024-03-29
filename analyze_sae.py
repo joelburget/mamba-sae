@@ -1,6 +1,7 @@
 """
 Find features in a single SAE.
 """
+
 # For each feature, find:
 # x find top activations
 # -   - autointerp?
@@ -11,7 +12,8 @@ import argparse
 import heapq
 import pickle
 from dataclasses import dataclass
-from typing import List, Tuple, TypeVar
+from typing import List, Tuple
+from transformers import MambaForCausalLM
 
 import torch
 import torch.multiprocessing as mp
@@ -20,8 +22,6 @@ from nnsight import LanguageModel
 from rich.progress import Progress, BarColumn, TimeRemainingColumn, MofNCompleteColumn
 
 from dictionary_learning.dictionary import AutoEncoder
-from tokenizer import Tokenizer
-from train_sae import make_model
 from params import (
     d_model,
     dictionary_size,
@@ -31,7 +31,6 @@ from params import (
     map_location,
 )
 
-tokenizer = Tokenizer()
 excerpt_width = 4
 top_feature_count = 4
 SIGNIFICANT_ACTIVATION_THRESHOLD = 0.01
@@ -78,7 +77,7 @@ def analyze_feature_worker(data_queue, result_queue):
     ae_state_dict = torch.load(sae_path, map_location=map_location)
     ae = AutoEncoder(d_model, dictionary_size)
     ae.load_state_dict(ae_state_dict)
-    model = make_model(model_path)
+    model = MambaForCausalLM.from_pretrained(model_path)
 
     while True:
         example = data_queue.get()
@@ -89,7 +88,7 @@ def analyze_feature_worker(data_queue, result_queue):
         for _ in range(dictionary_size):
             result.append([])
 
-        tokens = tokenizer(example)["input_ids"]
+        tokens = model.tokenizer(example)["input_ids"]
         activations = activations_on_input(model, ae, tokens)
         seq_len = len(tokens)
 
@@ -150,7 +149,7 @@ def collator(pickle_location: str, result_queue: mp.Queue, data_len: int):
                 break
 
             for feature_n, activations in enumerate(result):
-                for (activation, token_focus) in activations:
+                for activation, token_focus in activations:
                     all_activations[feature_n].append(activation)
                     min_heap = min_heaps[feature_n]
                     if activation < SIGNIFICANT_ACTIVATION_THRESHOLD:
@@ -209,6 +208,8 @@ def analyze_features_parallel(
 
 
 def print_top_acts(acts: List[Activation]):
+    model = MambaForCausalLM.from_pretrained(model_path)
+    tokenizer = model.tokenizer
     for activation in acts:
         match activation:
             case Activation(
