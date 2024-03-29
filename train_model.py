@@ -42,7 +42,6 @@ class MambaTrainer(Trainer):
             os.makedirs(output_dir)
 
         torch.save(self.model.state_dict(), model_path)
-        self.tokenizer.save_pretrained(output_dir)
 
 
 def run(args):

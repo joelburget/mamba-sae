@@ -1,5 +1,5 @@
 import logging
-from transformers import GPTNeoXTokenizerFast
+from transformers import AutoTokenizer
 
 # Turn off "Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained."
 logging.getLogger("transformers.tokenization_utils_base").disabled = True
@@ -10,10 +10,7 @@ EOS_TOKEN = "<|endoftext|>"
 
 class Tokenizer:
     def __init__(self):
-        self.wrapped = GPTNeoXTokenizerFast(
-            eos_token=EOS_TOKEN,
-            pad_token=EOS_TOKEN,
-        )
+        self.wrapped = AutoTokenizer.from_pretrained("state-spaces/mamba-130m-hf")
         self.bos_token_id = self.wrapped.bos_token_id
         self.pad_token_id = self.wrapped.pad_token_id
 
