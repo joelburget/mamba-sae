@@ -1,10 +1,10 @@
 packaging
 wheel
-torch==2.1.2
-transformers[sentencepiece]==4.39.2
-mamba-ssm==1.2.0
-accelerate==0.27.2
-datasets==2.15.0
+torch>=2.1.2
+transformers[sentencepiece]>=4.39.2
+mamba-ssm>=1.2.0
+accelerate>=0.27.2
+datasets>=2.15.0
 wandb
 zstandard
 tqdm
@@ -13,3 +13,5 @@ matplotlib
 rich
 causal-conv1d>=1.2.0
 mats_sae_training @ git+https://github.com/jbloomAus/mats_sae_training.git@main
+eindex @ git+https://github.com/callummcdougall/eindex.git
+sae-vis @ git+https://github.com/callummcdougall/sae_vis.git@4bcef489b644dd3357b1975f3245d534f6f0d2e0
