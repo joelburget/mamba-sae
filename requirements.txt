@@ -1,7 +1,7 @@
 packaging
 wheel
 torch==2.1.2
-transformers==4.36.2
+transformers==4.38.0
 mamba-ssm==1.2.0
 accelerate==0.25.0
 datasets==2.15.0
