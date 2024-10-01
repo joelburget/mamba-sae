@@ -33,8 +33,8 @@ if __name__ == "__main__":
             cfg = LanguageModelSAERunnerConfig(
                 model_name=sae_name,
                 model_class_name="HookedMamba",
-                hook_point=f"layers.{hook_layer}.hook_resid_pre",
-                hook_point_layer=hook_layer,
+                hook_name=f"layers.{hook_layer}.hook_resid_pre",
+                hook_layer=hook_layer,
                 d_in=d_model,
                 dataset_path=dataset_path,
                 is_dataset_tokenized=True,

@@ -5,7 +5,7 @@ This repo is for doing interpretability work on [Mamba (Linear-Time Sequence Mod
 
 We use SAELens for training and evaluating SAEs.
 
-## `train_sae.py`
+## `hyperparam_sweep.py`
 
 Run a wandb sweep to determine hyperparameters.
 
