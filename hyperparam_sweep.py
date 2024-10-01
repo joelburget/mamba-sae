@@ -30,7 +30,7 @@ if __name__ == "__main__":
             cfg = LanguageModelSAERunnerConfig(
                 model_name=model_name,
                 model_class_name="HookedMamba",
-                hook_name=f"layers.{hook_layer}.hook_resid_pre",
+                hook_name=f"blocks.{hook_layer}.hook_resid_pre",
                 hook_layer=hook_layer,
                 d_in=d_model,
                 dataset_path=dataset_path,
@@ -62,7 +62,11 @@ if __name__ == "__main__":
                 device="cuda",
                 n_checkpoints=10,
                 model_kwargs={
-                    "fast_ssm": True,
+                    # "fast_ssm": True,  
+                    # Error:
+                    # File "/usr/local/lib/python3.10/dist-packages/mamba_lens/HookedMamba.py", line 821, in forward
+                    # import selective_scan_cuda
+                    # ImportError: /workspace/mamba/selective_scan_cuda.cpython-310-x86_64-linux-gnu.so: undefined symbol: _ZN3c104cuda14ExchangeDeviceEa
                     "fast_conv": True,
                 },
                 model_from_pretrained_kwargs={},
