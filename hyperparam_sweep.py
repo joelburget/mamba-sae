@@ -7,7 +7,7 @@ import wandb
 from sae_lens.config import LanguageModelSAERunnerConfig
 from sae_lens.sae_training_runner import SAETrainingRunner
 
-model_name = "state-spaces/mamba-2.8b-hf"
+model_name = "state-spaces/mamba-2.8b"
 # dataset_path = "monology/pile-uncopyrighted"
 dataset_path = "NeelNanda/openwebtext-tokenized-9b"
 training_tokens = 300_000_000 // 10
