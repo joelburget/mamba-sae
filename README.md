@@ -5,12 +5,9 @@ This repo is for doing interpretability work on [Mamba (Linear-Time Sequence Mod
 
 We use SAELens for training and evaluating SAEs.
 
-# Tools
+## `train_sae.py`
 
-## Main scripts
+Run a wandb sweep to determine hyperparameters.
 
-_Before running the script, set the appropriate parameters in `params.py`_.
-
-### `train_sae.py`
-
-Once you've trained your model, you can train a Sparse Autoencoder on it. This script actually trains a grid of SAEs, one for each combination of sparsity penalty and relative size you configure.
+> wandb sweep --project mamba-sae-sweep sweep_config.yaml
+> wandb agent <sweep id printed by previous command>
