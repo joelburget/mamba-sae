@@ -3,29 +3,19 @@ import os
 
 import torch
 from datasets import load_dataset
-from mamba_ssm.models.config_mamba import MambaConfig
-from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
+
 from transformers import (
-    AutoTokenizer,
     DataCollatorForLanguageModeling,
     Trainer,
     TrainingArguments,
+    MambaConfig,
+    MambaForCausalLM,
 )
 from params import d_model, dataset_path, model_dir, model_path
+from tokenizer import Tokenizer
 
 os.environ["WANDB_PROJECT"] = "mamba-1l"
 os.environ["WANDB_LOG_MODEL"] = "false"
-
-MambaConfig.to_dict = lambda self: dict(
-    d_model=self.d_model,
-    n_layer=self.n_layer,
-    vocab_size=self.vocab_size,
-    ssm_cfg=self.ssm_cfg,
-    rms_norm=self.rms_norm,
-    residual_in_fp32=self.residual_in_fp32,
-    fused_add_norm=self.fused_add_norm,
-    pad_vocab_size_multiple=self.pad_vocab_size_multiple,
-)
 
 
 class MambaTrainer(Trainer):
@@ -52,15 +42,11 @@ class MambaTrainer(Trainer):
             os.makedirs(output_dir)
 
         torch.save(self.model.state_dict(), model_path)
-        self.tokenizer.save_pretrained(output_dir)
 
 
 def run(args):
-    model = MambaLMHeadModel(MambaConfig(n_layer=1, d_model=d_model))
-
-    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
-    tokenizer.eos_token = "<|endoftext|>"
-    tokenizer.pad_token = tokenizer.eos_token
+    model = MambaForCausalLM(MambaConfig(n_layer=1, d_model=d_model))
+    tokenizer = Tokenizer()
 
     data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 

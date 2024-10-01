@@ -5,13 +5,12 @@ from transformers import AutoTokenizer
 logging.getLogger("transformers.tokenization_utils_base").disabled = True
 
 
+EOS_TOKEN = "<|endoftext|>"
+
+
 class Tokenizer:
     def __init__(self):
-        self.wrapped = AutoTokenizer.from_pretrained(
-            "EleutherAI/gpt-neox-20b", padding_side="left"
-        )
-        self.wrapped.eos_token = "<|endoftext|>"
-        self.wrapped.pad_token = self.wrapped.eos_token
+        self.wrapped = AutoTokenizer.from_pretrained("state-spaces/mamba-130m-hf")
         self.bos_token_id = self.wrapped.bos_token_id
         self.pad_token_id = self.wrapped.pad_token_id
 

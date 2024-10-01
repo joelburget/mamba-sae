@@ -1,17 +1,13 @@
 import os
-from collections import OrderedDict
 
 import torch
 from datasets import load_dataset
-from nnsight import LanguageModel
 from tqdm import tqdm
+from transformers import MambaForCausalLM
 
-from dictionary_learning.buffer import ActivationBuffer
-from dictionary_learning.training import trainSAE
-from dictionary_learning.evaluation import evaluate
+from sae_training.config import LanguageModelSAERunnerConfig
+from sae_training.lm_runner import language_model_sae_runner
 
-from modeling_mamba import MambaConfig, MambaForCausalLM
-from tokenizer import Tokenizer
 from params import (
     d_model,
     dataset_path,
@@ -20,39 +16,11 @@ from params import (
     sae_dir,
     sae_path,
     model_path,
-    map_location,
 )
-
-mamba_config = MambaConfig(n_layer=1, d_model=d_model)
-
-
-def make_automodel(state_dict_path: str) -> MambaForCausalLM:
-    original_state_dict = torch.load(state_dict_path, map_location=map_location)
-    renamed_state_dict = OrderedDict()
-    for key in original_state_dict:
-        new_key = key.replace("backbone", "model").replace(".mixer", "")
-        renamed_state_dict[new_key] = original_state_dict[key]
-
-    automodel = MambaForCausalLM(mamba_config)
-    automodel.load_state_dict(renamed_state_dict)
-    # automodel.cuda()
-    return automodel
-
-
-def make_model(state_dict_path: str) -> LanguageModel:
-    """Make a LanguageModel from a state dict.
-
-    1. Load state dict.
-    2. Update it to use MambaForCausalLM names.
-    3. Wrap in a LanguageModel.
-    """
-    return LanguageModel(make_automodel(state_dict_path), tokenizer=Tokenizer())
-
 
 if __name__ == "__main__":
     dataset = load_dataset(dataset_path, split="train", streaming=True)
-    model = make_model(model_path)
-    lr = 3e-4
+    model = MambaForCausalLM.from_pretrained(model_path)
     if not os.path.exists(sae_dir):
         os.makedirs(sae_dir)
 
@@ -62,26 +30,36 @@ if __name__ == "__main__":
         for relative_size in tqdm(
             relative_sizes, desc="relative_size", position=1, leave=False
         ):
-            dictionary_size = relative_size * d_model
-            submodule = model.model.layers[0]
-
-            buffer = ActivationBuffer(
-                data=(example["text"] for example in dataset.take(200_000)),
-                model=model,
-                submodule=submodule,
-                in_feats=d_model,
-                out_feats=d_model,
+            cfg = LanguageModelSAERunnerConfig(
+                model_name=f"mamba-1l-{relative_size}-{sparsity_penalty}",
+                hook_point="layers.0.hook_resid_pre",
+                hook_point_layer=0,
+                d_in=d_model,
+                dataset_path="Skylion007/openwebtext",
+                is_dataset_tokenized=False,
+                # SAE Parameters
+                expansion_factor=relative_size,
+                b_dec_init_method="geometric_median",
+                # Training Parameters
+                l1_coefficient=sparsity_penalty,
+                context_size=128,
+                lr_warm_up_steps=5000,
+                # Activation Store Parameters
+                n_batches_in_buffer=128,
+                total_training_tokens=1_000_000 * 300,
+                store_batch_size=32,
+                # Dead Neurons and Sparsity
+                use_ghost_grads=True,
+                feature_sampling_window=1000,
+                dead_feature_window=5000,
+                dead_feature_threshold=1e-6,
+                # WANDB
+                log_to_wandb=True,
+                wandb_project="mamba-sae",
+                wandb_log_frequency=100,
+                # Misc
+                device="cuda",
+                n_checkpoints=10,
             )
-
-            ae = trainSAE(
-                activations=buffer,
-                activation_dim=d_model,
-                dictionary_size=dictionary_size,
-                lr=lr,
-                sparsity_penalty=sparsity_penalty,
-                device="cuda:0",
-            )
-
-            print(evaluate(model, submodule, ae, buffer))
-
-            torch.save(ae.state_dict(), sae_path)
+            sae = language_model_sae_runner(cfg)
+            torch.save(sae.state_dict(), sae_path)
