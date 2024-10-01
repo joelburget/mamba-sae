@@ -9,5 +9,7 @@ We use SAELens for training and evaluating SAEs.
 
 Run a wandb sweep to determine hyperparameters.
 
+```
 > wandb sweep --project mamba-sae-sweep sweep_config.yaml
 > wandb agent <sweep id printed by previous command>
+```
