@@ -1,12 +1,6 @@
-packaging
-wheel
 torch>=2.2.0
 transformers[sentencepiece]>=4.39.2
 accelerate>=0.27.2
 datasets>=2.15.0
 wandb
-zstandard
-tqdm
-matplotlib
-rich
 sae-lens

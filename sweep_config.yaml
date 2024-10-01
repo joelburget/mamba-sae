@@ -1,0 +1,13 @@
+program: train_sae.py
+name: sweep
+method: bayes
+metric:
+  goal: minimize
+  name: loss
+parameters:
+  sparsity_penalty:
+    min: 0.00006
+    max: 0.1
+  learning_rate:
+    min: 0.0004
+    max: 0.005

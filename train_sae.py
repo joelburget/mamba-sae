@@ -1,52 +1,56 @@
-import os
-
 import torch
 from datasets import load_dataset
-from tqdm import tqdm
-from transformers import MambaForCausalLM
+from transformers import AutoModelForCausalLM
+import yaml
+import wandb
 
 from sae_training.config import LanguageModelSAERunnerConfig
 from sae_training.lm_runner import language_model_sae_runner
 
-from params import (
-    d_model,
-    dataset_path,
-    sparsity_penalties,
-    relative_sizes,
-    sae_dir,
-    sae_path,
-    model_path,
-)
+model_name = "state-spaces/mamba-2.8b-hf"
+# dataset_path = "monology/pile-uncopyrighted"
+dataset_path = "NeelNanda/openwebtext-tokenized-9b"
+total_training_tokens = 300_000_000 // 10
+
+# Train a separate SAE for each of these sizes.
+# relative_sizes = [16, 32, 64]
+expansion_factor = 16
+hook_layer = 30
 
 if __name__ == "__main__":
     dataset = load_dataset(dataset_path, split="train", streaming=True)
-    model = MambaForCausalLM.from_pretrained(model_path)
-    if not os.path.exists(sae_dir):
-        os.makedirs(sae_dir)
+    model = AutoModelForCausalLM.from_pretrained(model_name)
+    d_model = model.config.hidden_size
 
-    for sparsity_penalty in tqdm(
-        sparsity_penalties, desc="sparsity_penalty", position=0
-    ):
-        for relative_size in tqdm(
-            relative_sizes, desc="relative_size", position=1, leave=False
-        ):
+    with open("sweep_config.yaml", "r") as sweep_config_file:
+        sweep_config = yaml.load(sweep_config_file, Loader=yaml.FullLoader)
+        with wandb.init(config=sweep_config):
+            sparsity_penalty = wandb.config.sparsity_penalty
+            learning_rate = wandb.config.learning_rate
+            dictionary_size = expansion_factor * d_model
+
+            sae_name = f"mamba-{expansion_factor}x-{sparsity_penalty}p"
             cfg = LanguageModelSAERunnerConfig(
-                model_name=f"mamba-1l-{relative_size}-{sparsity_penalty}",
-                hook_point="layers.0.hook_resid_pre",
-                hook_point_layer=0,
+                model_name=sae_name,
+                model_class_name="HookedMamba",
+                hook_point=f"layers.{hook_layer}.hook_resid_pre",
+                hook_point_layer=hook_layer,
                 d_in=d_model,
-                dataset_path="Skylion007/openwebtext",
-                is_dataset_tokenized=False,
+                dataset_path=dataset_path,
+                is_dataset_tokenized=True,
+                # is_dataset_tokenized=False,
+                # streaming=True,
                 # SAE Parameters
-                expansion_factor=relative_size,
+                expansion_factor=expansion_factor,
                 b_dec_init_method="geometric_median",
                 # Training Parameters
                 l1_coefficient=sparsity_penalty,
                 context_size=128,
+                lr=learning_rate,
                 lr_warm_up_steps=5000,
                 # Activation Store Parameters
                 n_batches_in_buffer=128,
-                total_training_tokens=1_000_000 * 300,
+                total_training_tokens=total_training_tokens,
                 store_batch_size=32,
                 # Dead Neurons and Sparsity
                 use_ghost_grads=True,
@@ -60,6 +64,17 @@ if __name__ == "__main__":
                 # Misc
                 device="cuda",
                 n_checkpoints=10,
+                model_kwargs={
+                    "fast_ssm": True,
+                    "fast_conv": True,
+                },
             )
             sae = language_model_sae_runner(cfg)
-            torch.save(sae.state_dict(), sae_path)
+
+            sae_save_path = "sae.pth"
+            torch.save(sae.state_dict(), sae_save_path)
+            wandb.save(sae_save_path)
+            artifact = wandb.Artifact(sae_name, type="model")
+            artifact.add_file(sae_save_path)
+            artifact.save()
+            artifact.wait()

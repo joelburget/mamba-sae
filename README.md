@@ -9,22 +9,8 @@ We use SAELens for training and evaluating SAEs.
 
 ## Main scripts
 
-_Before running any of these scripts, set the appropriate parameters in `params.py`_.
-
-### `train_model.py`
-
-Script for training a one-layer Mamba model. Outputs stats to [wandb](https://wandb.ai/site/).
+_Before running the script, set the appropriate parameters in `params.py`_.
 
 ### `train_sae.py`
 
 Once you've trained your model, you can train a Sparse Autoencoder on it. This script actually trains a grid of SAEs, one for each combination of sparsity penalty and relative size you configure.
-
-## Other
-
-### `run_model.py`
-
-Helpers for running a model you've trained.
-
-# Pretrained Models / SAEs
-
-I've uploaded two models (`pytorch_model-{320,640}.bin`) and two sets of SAEs trained on them to [Google Drive](https://drive.google.com/drive/folders/1l8Qiei75lQjrz_EUrgNgysfZ-gkr_r0L?usp=sharing). [Doc with their stats](https://docs.google.com/document/d/1Y1iEJIkoXhLkdxEQCxIPHJFirJRq26R9gRqpYV9hie0/edit?usp=sharing).
