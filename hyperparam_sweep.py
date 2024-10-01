@@ -42,7 +42,7 @@ if __name__ == "__main__":
                 b_dec_init_method="geometric_median",
                 # Training Parameters
                 l1_coefficient=sparsity_penalty,
-                context_size=128,
+                context_size=1024,
                 lr=learning_rate,
                 lr_warm_up_steps=5000,
                 # Activation Store Parameters
