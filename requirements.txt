@@ -7,7 +7,6 @@ datasets>=2.15.0
 wandb
 zstandard
 tqdm
-nnsight
 matplotlib
 rich
 sae-lens
