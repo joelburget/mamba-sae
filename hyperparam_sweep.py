@@ -10,7 +10,7 @@ from sae_lens.sae_training_runner import SAETrainingRunner
 model_name = "state-spaces/mamba-2.8b-hf"
 # dataset_path = "monology/pile-uncopyrighted"
 dataset_path = "NeelNanda/openwebtext-tokenized-9b"
-total_training_tokens = 300_000_000 // 10
+training_tokens = 300_000_000 // 10
 
 # Train a separate SAE for each of these sizes.
 # relative_sizes = [16, 32, 64]
@@ -50,7 +50,7 @@ if __name__ == "__main__":
                 lr_warm_up_steps=5000,
                 # Activation Store Parameters
                 n_batches_in_buffer=128,
-                total_training_tokens=total_training_tokens,
+                training_tokens=training_tokens,
                 store_batch_size=32,
                 # Dead Neurons and Sparsity
                 use_ghost_grads=True,
