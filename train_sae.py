@@ -4,8 +4,8 @@ from transformers import AutoModelForCausalLM
 import yaml
 import wandb
 
-from sae_training.config import LanguageModelSAERunnerConfig
-from sae_training.lm_runner import language_model_sae_runner
+from sae_lens.config import LanguageModelSAERunnerConfig
+from sae_lens.sae_training_runner import SAETrainingRunner
 
 model_name = "state-spaces/mamba-2.8b-hf"
 # dataset_path = "monology/pile-uncopyrighted"
@@ -69,7 +69,7 @@ if __name__ == "__main__":
                     "fast_conv": True,
                 },
             )
-            sae = language_model_sae_runner(cfg)
+            sae = SAETrainingRunner(cfg).run()
 
             sae_save_path = "sae.pth"
             torch.save(sae.state_dict(), sae_save_path)
