@@ -68,6 +68,7 @@ if __name__ == "__main__":
                     "fast_ssm": True,
                     "fast_conv": True,
                 },
+                model_from_pretrained_kwargs={},
             )
             sae = SAETrainingRunner(cfg).run()
 
