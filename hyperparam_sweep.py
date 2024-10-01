@@ -1,6 +1,5 @@
 import torch
 from datasets import load_dataset
-from transformers import AutoConfig
 import yaml
 import wandb
 
@@ -8,6 +7,7 @@ from sae_lens.config import LanguageModelSAERunnerConfig
 from sae_lens.sae_training_runner import SAETrainingRunner
 
 model_name = "state-spaces/mamba-2.8b"
+d_model = 2560
 # dataset_path = "monology/pile-uncopyrighted"
 dataset_path = "NeelNanda/openwebtext-tokenized-9b"
 training_tokens = 300_000_000 // 10
@@ -17,8 +17,6 @@ hook_layer = 30
 
 if __name__ == "__main__":
     dataset = load_dataset(dataset_path, split="train", streaming=True)
-    config = AutoConfig.from_pretrained(model_name)
-    d_model = config.hidden_size
 
     with open("sweep_config.yaml", "r") as sweep_config_file:
         sweep_config = yaml.load(sweep_config_file, Loader=yaml.FullLoader)
