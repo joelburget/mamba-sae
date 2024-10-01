@@ -29,9 +29,8 @@ if __name__ == "__main__":
             learning_rate = wandb.config.learning_rate
             dictionary_size = expansion_factor * d_model
 
-            sae_name = f"mamba-{expansion_factor}x-{sparsity_penalty}p"
             cfg = LanguageModelSAERunnerConfig(
-                model_name=sae_name,
+                model_name=model_name,
                 model_class_name="HookedMamba",
                 hook_name=f"layers.{hook_layer}.hook_resid_pre",
                 hook_layer=hook_layer,
@@ -75,7 +74,9 @@ if __name__ == "__main__":
             sae_save_path = "sae.pth"
             torch.save(sae.state_dict(), sae_save_path)
             wandb.save(sae_save_path)
-            artifact = wandb.Artifact(sae_name, type="model")
+            artifact = wandb.Artifact(
+                f"mamba-{expansion_factor}x-{sparsity_penalty}p", type="model"
+            )
             artifact.add_file(sae_save_path)
             artifact.save()
             artifact.wait()
