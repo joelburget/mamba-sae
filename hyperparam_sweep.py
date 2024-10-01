@@ -1,6 +1,6 @@
 import torch
 from datasets import load_dataset
-from transformers import AutoModelForCausalLM
+from transformers import AutoConfig
 import yaml
 import wandb
 
@@ -12,15 +12,13 @@ model_name = "state-spaces/mamba-2.8b"
 dataset_path = "NeelNanda/openwebtext-tokenized-9b"
 training_tokens = 300_000_000 // 10
 
-# Train a separate SAE for each of these sizes.
-# relative_sizes = [16, 32, 64]
 expansion_factor = 16
 hook_layer = 30
 
 if __name__ == "__main__":
     dataset = load_dataset(dataset_path, split="train", streaming=True)
-    model = AutoModelForCausalLM.from_pretrained(model_name)
-    d_model = model.config.hidden_size
+    config = AutoConfig.from_pretrained(model_name)
+    d_model = config.hidden_size
 
     with open("sweep_config.yaml", "r") as sweep_config_file:
         sweep_config = yaml.load(sweep_config_file, Loader=yaml.FullLoader)
