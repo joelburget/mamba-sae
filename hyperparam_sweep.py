@@ -51,7 +51,7 @@ if __name__ == "__main__":
                 # Activation Store Parameters
                 n_batches_in_buffer=128,
                 training_tokens=training_tokens,
-                store_batch_size=32,
+                store_batch_size_prompts=32,
                 # Dead Neurons and Sparsity
                 use_ghost_grads=True,
                 feature_sampling_window=1000,
