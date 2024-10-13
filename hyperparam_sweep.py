@@ -12,7 +12,7 @@ dataset_path = "NeelNanda/openwebtext-tokenized-9b"
 training_tokens = 300_000_000 // 10
 
 expansion_factor = 16
-hook_layer = 30
+hook_layer = 12
 
 if __name__ == "__main__":
     dataset = load_dataset(dataset_path, split="train", streaming=True)
