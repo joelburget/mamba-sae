@@ -6,9 +6,8 @@ import wandb
 from sae_lens.config import LanguageModelSAERunnerConfig
 from sae_lens.sae_training_runner import SAETrainingRunner
 
-model_name = "state-spaces/mamba-2.8b"
-d_model = 2560
-# dataset_path = "monology/pile-uncopyrighted"
+model_name = "state-spaces/mamba-130m"
+d_model = 768
 dataset_path = "NeelNanda/openwebtext-tokenized-9b"
 training_tokens = 300_000_000 // 10
 
@@ -60,7 +59,7 @@ if __name__ == "__main__":
                 device="cuda",
                 n_checkpoints=10,
                 model_kwargs={
-                    # "fast_ssm": True,  
+                    # "fast_ssm": True,
                     # Error:
                     # File "/usr/local/lib/python3.10/dist-packages/mamba_lens/HookedMamba.py", line 821, in forward
                     # import selective_scan_cuda
