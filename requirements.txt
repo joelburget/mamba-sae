@@ -5,3 +5,4 @@ datasets>=2.15.0
 wandb
 sae-lens[mamba]
 causal_conv1d
+git+https://github.com/state-spaces/mamba
